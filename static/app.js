@@ -23,6 +23,12 @@ document.querySelectorAll(".tab").forEach(b=>b.onclick=()=>{document.querySelect
 document.getElementById("qtest").addEventListener("click",async()=>{const b=document.getElementById("qtest");b.disabled=true;b.textContent="SUBMITTING…";try{const r=await fetch("/api/quantum/test",{method:"POST"});const x=await r.json();alert(x.submitted?"Real QPU job submitted: "+x.job_id:(x.reason||x.message||"Quantum test failed"));await load();}finally{b.disabled=false;b.textContent="TEST REAL QPU";}});
 load();setInterval(load,2000);
 
+function openRightHandMan(){const box=document.getElementById("rhChatBox");if(box){box.classList.add("open");document.getElementById("rhChatInput").focus();}}
+function closeRightHandMan(){const box=document.getElementById("rhChatBox");if(box)box.classList.remove("open");}
+async function sendRightHandMessage(){const input=document.getElementById("rhChatInput"),msg=input.value.trim();if(!msg)return;const log=document.getElementById("rhChatLog");log.innerHTML+='<div class="rh-msg you"><b>YOU</b><p>'+esc(msg)+'</p></div>';input.value="";input.disabled=true;try{const r=await fetch("/api/chat",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({message:msg})});const x=await r.json();log.innerHTML+='<div class="rh-msg forge"><b>FORGE RIGHT-HAND MAN</b><p>'+esc(x.reply||"No response right now.")+'</p></div>';log.scrollTop=log.scrollHeight;await load();}catch(e){log.innerHTML+='<div class="rh-msg forge"><b>FORGE RIGHT-HAND MAN</b><p>Connection interrupted. I am still here—try again.</p></div>';}finally{input.disabled=false;input.focus();}}
+document.getElementById("rhBubble").addEventListener("click",openRightHandMan);document.getElementById("rhClose").addEventListener("click",closeRightHandMan);document.getElementById("rhSend").addEventListener("click",sendRightHandMessage);document.getElementById("rhChatInput").addEventListener("keydown",e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();sendRightHandMessage();}});
+
+
 async function approveRevenue(id){
   if(!confirm("Approve this specific revenue experiment?")) return;
   const r=await fetch("/api/revenue/proposals/"+id+"/approve",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({approved_by:"owner",note:"Approved in Quantum Forge dashboard"})});
