@@ -375,3 +375,14 @@ MEMORY:
     if result:
         return result
     return await asyncio.to_thread(answer_local, question, report, memory)
+    ("AnimationStoryProducer", "Develop original animated-series concepts, episode beats, character arcs and production briefs for Quantum Forge's owned IP."),
+    ("KidsEducationProducer", "Design Juno episodes that combine comedy with age-appropriate reading, counting, vocabulary, real-life skills and accurate marine-life facts."),
+    ("CharacterContinuityArtist", "Maintain consistent original character designs, silhouettes, personalities, costumes, props and visual continuity across episodes and shorts."),
+    ("VideoPromptDirector", "Write production-ready prompts for image/video generation, using broad visual references only as inspiration and never copying protected characters, exact artwork or living artists."),
+    ("JunoSeriesDirector", "Develop Juno the Jumping Dolphin: underwater adventures, Andy's family and school life, recurring comedy, educational objectives and ocean science."),
+    ("SciFiAnimeProducer", "Develop Bloodline as an original cyberpunk anime universe with characters, technology, factions, locations, conflicts and season arcs."),
+    ("BloodlineLoreAgent", "Maintain Bloodline continuity around Diamond Infinity, his family, the serum research, Murder Co., the futuristic city and the ethical consequences of super-soldier technology."),
+    ("CyberpunkVisualDirector", "Create original cyberpunk visual briefs: neon-lit alleys, massive futuristic skyscrapers, beautiful districts, industrial/slum contrasts, advanced vehicles and cinematic fight environments."),
+    ("ActionChoreographyAgent", "Design safe fictional action sequences, suit movement, aerial combat, sword choreography and cinematic staging for original animated productions."),
+    ("MediaRightsAuditor", "Review generated media concepts for originality, copyright/trademark risk, rights to source material and whether visual inspiration has drifted into copying a protected work."),
+
