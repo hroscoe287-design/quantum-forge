@@ -38,7 +38,7 @@ def default_state():
                        "activity": "Standing by", "last_result": ""} for n, r in AGENT_ROLES},
         "projects": [], "discoveries": [], "jobs": [], "evidence": [], "audit": [],
         "memory": [], "report": "", "chat": [],
-        "revenue": {"enabled": REVENUE_MODE, "opportunities_found": 0, "experiments": 0, "pipeline_status": "SCANNING", "last_scan": None, "note": "Agents research and prepare revenue opportunities continuously; human approval is required before sales, spending, contracts, or financial transactions."},
+        "revenue": {"enabled": REVENUE_MODE, "opportunities_found": 0, "experiments": 0, "pipeline_status": "SCANNING", "last_scan": None, "note": "Agents research and prepare revenue opportunities continuously; human approval is required before sales, spending, contracts, or financial transactions.", "proposals": [], "approved": [], "rejected": []},
         "quantum": {
             "mode": "LOCAL_STATE_VECTOR", "provider": "local",
             "hardware_connected": False, "backend": None, "qubits": 8,
@@ -79,6 +79,10 @@ class AgentRequest(BaseModel):
 
 class ChatRequest(BaseModel):
     message: str = Field(min_length=1, max_length=10000)
+
+class RevenueApproval(BaseModel):
+    approved_by: str = Field(default="owner", min_length=1, max_length=120)
+    note: str = Field(default="", max_length=2000)
 
 def add_audit_sync(action, detail):
     state["audit"].insert(0, {"id": str(uuid.uuid4()), "time": time.time(),
@@ -213,6 +217,20 @@ async def process_project(project, prompt=None):
         )
         state["revenue"]["experiments"] += 1
         state["revenue"]["pipeline_status"] = "OPPORTUNITIES_READY"
+        proposal = {
+            "id": str(uuid.uuid4()),
+            "created_at": time.time(),
+            "project_id": project["id"],
+            "title": "Revenue experiment from Forge cycle",
+            "description": report[:4000],
+            "status": "PENDING_APPROVAL",
+            "action": "RESEARCH_AND_BUILD_REVENUE_EXPERIMENT",
+            "risk": "No money is spent and no external message, contract, or financial transaction is executed until approval.",
+            "requested_scope": "Build and execute only the specific revenue experiment described in this proposal after owner approval."
+        }
+        state["revenue"].setdefault("proposals", []).insert(0, proposal)
+        state["revenue"]["proposals"] = state["revenue"]["proposals"][:100]
+        add_audit_sync("REVENUE_APPROVAL_REQUESTED", proposal["title"])
     learned_ids = await asyncio.to_thread(learn_from_cycle, project["id"], objective, report, findings, literature)
     state["report"] = report
 
@@ -355,6 +373,46 @@ async def run_agents(req: AgentRequest):
         await process_project(p, req.prompt)
         return {"job": state["jobs"][0], "discovery": state["discoveries"][0]}
 
+@app.get("/api/revenue/proposals")
+async def revenue_proposals():
+    return state.get("revenue", {}).get("proposals", [])
+
+@app.post("/api/revenue/proposals/{proposal_id}/approve")
+async def approve_revenue(proposal_id: str, req: RevenueApproval):
+    proposals = state.get("revenue", {}).setdefault("proposals", [])
+    p = next((x for x in proposals if x.get("id") == proposal_id), None)
+    if not p:
+        return {"error": "Revenue proposal not found"}
+    if p.get("status") != "PENDING_APPROVAL":
+        return {"error": "Proposal is not awaiting approval", "status": p.get("status")}
+    p["status"] = "APPROVED"
+    p["approved_at"] = time.time()
+    p["approved_by"] = req.approved_by
+    p["approval_note"] = req.note
+    state["revenue"].setdefault("approved", []).insert(0, p)
+    state["revenue"]["approved"] = state["revenue"]["approved"][:100]
+    add_audit_sync("REVENUE_APPROVED", f"{p.get('title','proposal')} approved by {req.approved_by}. Execution remains limited to configured integrations.")
+    save_state_sync(state)
+    return {"ok": True, "proposal": p, "next": "Execute only the specifically approved action through a configured integration."}
+
+@app.post("/api/revenue/proposals/{proposal_id}/reject")
+async def reject_revenue(proposal_id: str, req: RevenueApproval):
+    proposals = state.get("revenue", {}).setdefault("proposals", [])
+    p = next((x for x in proposals if x.get("id") == proposal_id), None)
+    if not p:
+        return {"error": "Revenue proposal not found"}
+    if p.get("status") != "PENDING_APPROVAL":
+        return {"error": "Proposal is not awaiting approval", "status": p.get("status")}
+    p["status"] = "REJECTED"
+    p["rejected_at"] = time.time()
+    p["rejected_by"] = req.approved_by
+    p["rejection_note"] = req.note
+    state["revenue"].setdefault("rejected", []).insert(0, p)
+    state["revenue"]["rejected"] = state["revenue"]["rejected"][:100]
+    add_audit_sync("REVENUE_REJECTED", f"{p.get('title','proposal')} rejected by {req.approved_by}")
+    save_state_sync(state)
+    return {"ok": True, "proposal": p}
+
 @app.post("/api/chat")
 async def chat(req: ChatRequest):
     async with state_lock:
@@ -367,6 +425,7 @@ async def chat(req: ChatRequest):
 
 @app.on_event("startup")
 async def startup():
+    ensure_revenue_project()
     global cycle_task
     if cycle_task is None or cycle_task.done():
         cycle_task = asyncio.create_task(autonomous_cycle())
