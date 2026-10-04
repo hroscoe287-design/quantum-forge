@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Quantum Forge</title>
+<link rel="stylesheet" href="/static/app.css">
+</head>
+<body>
+<header>
+  <div>
+    <div class="eyebrow">AUTONOMOUS SCIENCE • ENGINEERING • DISCOVERY</div>
+    <h1>⚛ QUANTUM FORGE</h1>
+    <p>One research engine for hypotheses, inventions, simulations and technical blueprints.</p>
+  </div>
+  <div class="live"><span></span> 24/7 CORE <b id="cycle">0</b></div>
+</header>
+
+<main>
+<section class="hero">
+  <div>
+    <h2>What do you want to discover?</h2>
+    <p>Give the Forge a disease research problem, scientific question, invention idea, or engineering objective.</p>
+    <form id="projectForm">
+      <input id="name" placeholder="Project name" required>
+      <select id="kind"><option value="research">Disease / Scientific Research</option><option value="invention">Invention</option><option value="engineering">Engineering</option></select>
+      <textarea id="objective" placeholder="Describe what you want the agents to investigate..." required></textarea>
+      <button>START FORGE</button>
+    </form>
+  </div>
+  <div class="quantum-card">
+    <div class="label">QUANTUM LAYER</div>
+    <strong id="qmode">SIMULATION</strong>
+    <p id="qnote"></p>
+    <div class="pill">MULTIVERSE SANDBOX = PARALLEL COMPUTATIONAL HYPOTHESES</div>
+  </div>
+</section>
+
+<nav>
+  <button class="tab active" data-tab="overview">Command Center</button>
+  <button class="tab" data-tab="agents">24/7 Agents</button>
+  <button class="tab" data-tab="discoveries">Discoveries</button>
+  <button class="tab" data-tab="projects">Projects</button>
+  <button class="tab" data-tab="audit">Audit Trail</button>
+</nav>
+
+<section id="overview" class="panel active">
+  <div class="stats"><div><small>AGENTS</small><b id="agentCount">10</b></div><div><small>PROJECTS</small><b id="projectCount">0</b></div><div><small>DISCOVERY BRANCHES</small><b id="discoveryCount">0</b></div><div><small>AUTONOMOUS CYCLES</small><b id="cycle2">0</b></div></div>
+  <div class="grid"><div class="card"><h3>Pipeline</h3><div class="pipeline"><span>IDEA</span><i>→</i><span>RESEARCH</span><i>→</i><span>SIMULATE</span><i>→</i><span>DESIGN</span><i>→</i><span>VALIDATE</span></div></div>
+  <div class="card"><h3>Safety Gate</h3><p>Medical and safety-critical outputs remain hypotheses until independently validated. No automatic clinical treatment, physical deployment, or unsafe experiment is authorized by the Forge.</p></div></div>
+</section>
+
+<section id="agents" class="panel"><div class="card"><h3>Agent Control Center</h3><div id="agentList" class="agent-list"></div></div></section>
+<section id="discoveries" class="panel"><div id="discoveryList"></div></section>
+<section id="projects" class="panel"><div id="projectList"></div></section>
+<section id="audit" class="panel"><div id="auditList"></div></section>
+</main>
+<script src="/static/app.js"></script>
+</body>
+</html>
