@@ -46,7 +46,7 @@ def default_state():
                       "last_report": "", "verified_revenue_usd": 0.0, "verified_costs_usd": 0.0},
         "projects": [], "discoveries": [], "jobs": [], "evidence": [], "audit": [],
         "memory": [], "report": "", "chat": [],
-        "daily_reports": [], "daily_report_date": None,
+        "daily_reports": [], "daily_report_date": None, "owner_tasks": [],
         "revenue": {"enabled": REVENUE_MODE, "opportunities_found": 0, "experiments": 0, "pipeline_status": "SCANNING", "last_scan": None, "note": "Agents research and prepare revenue opportunities continuously; human approval is required before sales, spending, contracts, or financial transactions.", "proposals": [], "approved": [], "rejected": [], "offers": [], "verified_revenue_usd": 0.0, "checkout_provider": "stripe", "checkout_configured": stripe_configured()},
         "quantum": {
             "mode": "LOCAL_STATE_VECTOR", "provider": "local",
@@ -92,6 +92,12 @@ class AgentRequest(BaseModel):
 
 class ChatRequest(BaseModel):
     message: str = Field(min_length=1, max_length=10000)
+
+class OwnerTaskRequest(BaseModel):
+    title: str = Field(min_length=1, max_length=200)
+    details: str = Field(min_length=1, max_length=10000)
+    due_at: float | None = None
+    priority: str = "NORMAL"
 
 class RevenueApproval(BaseModel):
     approved_by: str = Field(default="owner", min_length=1, max_length=120)
@@ -427,6 +433,42 @@ async def autonomous_cycle():
 @app.get("/")
 async def home():
     return FileResponse(ROOT / "static" / "index.html")
+
+@app.get("/api/right-hand-man")
+async def right_hand_man():
+    tasks = state.setdefault("owner_tasks", [])
+    pending = [x for x in tasks if x.get("status") in {"NEEDS_OWNER", "OPEN"}]
+    return {
+        "agent": "ForgeRightHand",
+        "mission": "Prepare the owner for personal-information steps while the worker agents handle approved work.",
+        "pending_owner_tasks": pending[:100],
+        "count": len(pending),
+        "privacy_rule": "Forge never invents, stores, or submits sensitive personal information without explicit owner action."
+    }
+
+@app.post("/api/right-hand-man/tasks")
+async def create_owner_task(req: OwnerTaskRequest):
+    task = {
+        "id": str(uuid.uuid4()), "title": req.title, "details": req.details,
+        "due_at": req.due_at, "priority": req.priority, "status": "NEEDS_OWNER",
+        "created_at": time.time(), "completed_at": None
+    }
+    state.setdefault("owner_tasks", []).insert(0, task)
+    state["owner_tasks"] = state["owner_tasks"][:300]
+    add_audit_sync("OWNER_TASK_CREATED", req.title)
+    save_state_sync(state)
+    return task
+
+@app.post("/api/right-hand-man/tasks/{task_id}/complete")
+async def complete_owner_task(task_id: str):
+    task = next((x for x in state.setdefault("owner_tasks", []) if x.get("id") == task_id), None)
+    if not task:
+        return {"ok": False, "error": "Task not found"}
+    task["status"] = "COMPLETED"
+    task["completed_at"] = time.time()
+    add_audit_sync("OWNER_TASK_COMPLETED", task.get("title", ""))
+    save_state_sync(state)
+    return task
 
 @app.get("/api/state")
 async def api_state():
