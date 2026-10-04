@@ -11,6 +11,7 @@ from pydantic import BaseModel, Field
 from quantum_agents import AGENT_ROLES, answer_chat, run_agent, synthesize
 from quantum_cloud import config as quantum_config, job_status as quantum_job_status, status as quantum_status, submit_probe as quantum_submit_probe
 from neural_core import status as neural_status
+from memory_system import learn_from_cycle, recall, stats as memory_stats
 
 ROOT = Path(__file__).parent
 DATA = ROOT / "data"
@@ -175,6 +176,7 @@ async def process_project(project, prompt=None):
         else:
             state["quantum"]["hardware_connected"] = False
     report = await synthesize(objective, findings, state.get("report", ""))
+    learned_ids = await asyncio.to_thread(learn_from_cycle, project["id"], objective, report, findings, literature)
     state["report"] = report
 
     discovery = {
@@ -185,6 +187,7 @@ async def process_project(project, prompt=None):
         "hardware_quantum_job": hardware_job,
         "agent_findings": findings,
         "evidence": literature,
+        "learned_memory_ids": learned_ids,
     }
     state["discoveries"].insert(0, discovery)
     state["discoveries"] = state["discoveries"][:100]
@@ -252,7 +255,15 @@ async def health():
             "running": state["running"], "cycle_status": state["cycle_status"],
             "last_cycle_completed": state["last_cycle_completed"],
             "llm_configured": bool(os.getenv("OPENAI_API_KEY")),\n            "built_in_ai": True,\n            "ai_mode": "EXTERNAL_LLM + BUILT_IN_FALLBACK" if os.getenv("OPENAI_API_KEY") else "BUILT_IN_COGNITIVE_CORE",
-            "quantum": qs, "neural_core": neural_status()}
+            "quantum": qs, "neural_core": neural_status(), "memory": memory_stats()}
+
+@app.get("/api/memory/search")
+async def api_memory_search(q: str, limit: int = 12):
+    return {"results": recall(q, max(1, min(limit, 50)))}
+
+@app.get("/api/memory/stats")
+async def api_memory_stats():
+    return memory_stats()
 
 @app.get("/api/quantum/status")
 async def api_quantum_status():
