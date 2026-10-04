@@ -7,6 +7,8 @@ from memory_system import recall
 from urllib.request import Request, urlopen
 from urllib.parse import quote_plus
 import re
+from urllib.parse import quote_plus
+import re
 
 AGENT_ROLES = [
     ("Coordinator", "Break the objective into a research plan and assign priorities."),
@@ -19,6 +21,12 @@ AGENT_ROLES = [
     ("Evidence", "Check provenance, quality, contradictions and missing evidence."),
     ("Critic", "Actively try to falsify the strongest conclusions and expose overclaims."),
     ("Learning", "Extract durable lessons, update memory and identify the next best research question."),
+    ("Venture", "Find legitimate revenue opportunities by studying customer pain, demand, competition, pricing and distribution. Produce testable business opportunities; never assume revenue is guaranteed."),
+    ("Product", "Turn the strongest opportunity into a concrete product offer, MVP scope, user workflow, differentiation and measurable value proposition."),
+    ("Growth", "Find ethical customer-acquisition channels, partnerships, content opportunities and repeatable growth experiments. Avoid spam, deception and unauthorized outreach."),
+    ("Sales", "Build qualified-customer profiles, outreach drafts, demo plans, objection handling and lead-scoring criteria. Do not send messages or make commitments without human approval."),
+    ("Pricing", "Model sustainable pricing, usage limits, unit economics, gross-margin targets and packaging using explicit assumptions rather than invented financial results."),
+    ("Opportunity", "Continuously compare ideas, score market attractiveness, urgency, competition, feasibility and monetization potential, then select the next highest-value experiment."),
     ("Venture", "Find legitimate ways the Forge can create revenue: customer problems, products, pricing, distribution, validation tests and unit economics. Never assume revenue is guaranteed and never take financial actions without human approval."),
 ]
 
@@ -83,6 +91,26 @@ def market_search(query: str, limit: int = 5) -> list[dict[str, str]]:
         return []
 
 
+
+def market_search(query: str, limit: int = 5) -> list[dict[str, str]]:
+    """Public web discovery used only for research; no purchases or financial actions."""
+    url = "https://html.duckduckgo.com/html/?q=" + quote_plus(query)
+    try:
+        req = Request(url, headers={"User-Agent": "QuantumForge/1.0 market-research"})
+        with urlopen(req, timeout=15) as r:
+            html = r.read().decode("utf-8", errors="replace")
+        out = []
+        for m in re.finditer(r'<a[^>]+class="result__a"[^>]+href="([^"]+)"[^>]*>(.*?)</a>', html, re.S | re.I):
+            href, title = m.groups()
+            title = re.sub(r"<.*?>", "", title).strip()
+            if title and href:
+                out.append({"title": title[:240], "url": href[:1000]})
+            if len(out) >= limit:
+                break
+        return out
+    except Exception:
+        return []
+
 async def run_agent(name: str, role: str, objective: str, context: str, evidence=None) -> dict[str, Any]:
     memories = recall(objective + " " + context, limit=8)
     memory_text = "\n".join("- " + str(m.get("content",""))[:900] for m in memories)
@@ -96,6 +124,15 @@ async def run_agent(name: str, role: str, objective: str, context: str, evidence
             f"- {x['title']} | {x['url']}" for x in market_hits
         )
 
+    market_text = ""
+    if name in {"Venture", "Growth", "Sales", "Pricing", "Opportunity"}:
+        hits = await asyncio.to_thread(
+            market_search,
+            f"{objective} customer demand competitors pricing business opportunity"
+        )
+        market_text = "\n\nPUBLIC MARKET SIGNALS:\n" + "\n".join(
+            f"- {x['title']} | {x['url']}" for x in hits
+        )
     prompt = f"""ROLE: {name}
 MISSION: {role}
 
