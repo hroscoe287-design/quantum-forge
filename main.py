@@ -9,6 +9,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 from quantum_agents import AGENT_ROLES, answer_chat, run_agent, synthesize
+from quantum_cloud import config as quantum_config, job_status as quantum_job_status, status as quantum_status, submit_probe as quantum_submit_probe
 
 ROOT = Path(__file__).parent
 DATA = ROOT / "data"
@@ -16,7 +17,7 @@ DATA.mkdir(exist_ok=True)
 STATE_FILE = DATA / "state.json"
 STATE_TMP = DATA / "state.json.tmp"
 
-app = FastAPI(title="Quantum Forge", version="0.5.0")
+app = FastAPI(title="Quantum Forge", version="0.6.0")
 app.mount("/static", StaticFiles(directory=ROOT / "static"), name="static")
 
 CYCLE_SECONDS = max(60, int(os.getenv("FORGE_CYCLE_SECONDS", "300")))
@@ -36,8 +37,9 @@ def default_state():
         "memory": [], "report": "", "chat": [],
         "quantum": {
             "mode": "LOCAL_STATE_VECTOR", "provider": "local",
-            "hardware_connected": False, "qubits": 8,
-            "note": "Real small state-vector simulations run locally. Physical quantum hardware is never claimed unless connected."
+            "hardware_connected": False, "backend": None, "qubits": 8,
+            "last_hardware_job": None,
+            "note": "Local simulator is the fallback. Real hardware is used only when a provider credential and hardware execution flag are configured."
         }
     }
 
@@ -158,6 +160,19 @@ async def process_project(project, prompt=None):
 
     findings = await asyncio.gather(*(one(agent) for agent in AGENT_ROLES))
     q = quantum_score(objective + " " + str(findings), 32)
+    hardware_job = None
+    qcfg = quantum_config()
+    if qcfg["enabled"]:
+        hardware_job = await asyncio.to_thread(quantum_submit_probe, f"Forge cycle {state['cycle']} project {project['name']}")
+        if hardware_job.get("submitted"):
+            state["quantum"]["last_hardware_job"] = hardware_job
+            state["quantum"]["provider"] = hardware_job.get("provider", "ibm")
+            state["quantum"]["backend"] = hardware_job.get("backend")
+            state["quantum"]["hardware_connected"] = True
+            state["quantum"]["mode"] = "REAL_QPU + LOCAL_FALLBACK"
+            state["quantum"]["note"] = "A real QPU job was submitted; local simulation remains available while hardware jobs queue."
+        else:
+            state["quantum"]["hardware_connected"] = False
     report = await synthesize(objective, findings, state.get("report", ""))
     state["report"] = report
 
@@ -166,6 +181,7 @@ async def process_project(project, prompt=None):
         "title": "Multi-agent research cycle", "summary": report[:1800],
         "confidence": None, "status": "HYPOTHESIS",
         "created_at": time.time(), "quantum_result": q,
+        "hardware_quantum_job": hardware_job,
         "agent_findings": findings,
         "evidence": literature,
     }
@@ -181,7 +197,8 @@ async def process_project(project, prompt=None):
     project["status"] = "ACTIVE"
     project["evidence_level"] = "LITERATURE_BACKED" if any(x.get("url") for x in literature) else "HYPOTHESIS"
     job["status"] = "COMPLETE"; job["completed_at"] = time.time()
-    job["detail"] = f"{len(findings)} agents completed; {len(literature)} literature signals; {q['branches']} quantum branches"
+    hardware_note = f"; real QPU job {hardware_job.get('job_id')}" if hardware_job and hardware_job.get("submitted") else ""
+    job["detail"] = f"{len(findings)} agents completed; {len(literature)} literature signals; {q['branches']} local quantum branches{hardware_note}"
     add_audit_sync("MULTI_AGENT_CYCLE", job["detail"])
     for n, _ in AGENT_ROLES:
         state["agents"][n]["status"] = "IDLE"
@@ -228,11 +245,42 @@ async def api_state():
 
 @app.get("/api/health")
 async def health():
+    qs = await asyncio.to_thread(quantum_status)
     return {"ok": True, "service": "quantum-forge", "version": app.version,
             "agents": len(AGENT_ROLES), "cycle": state["cycle"],
             "running": state["running"], "cycle_status": state["cycle_status"],
             "last_cycle_completed": state["last_cycle_completed"],
-            "llm_configured": bool(os.getenv("OPENAI_API_KEY"))}
+            "llm_configured": bool(os.getenv("OPENAI_API_KEY")),
+            "quantum": qs}
+
+@app.get("/api/quantum/status")
+async def api_quantum_status():
+    qs = await asyncio.to_thread(quantum_status)
+    state["quantum"].update({
+        "provider": qs.get("provider", state["quantum"].get("provider")),
+        "backend": qs.get("backend"),
+        "hardware_connected": bool(qs.get("connected")),
+        "mode": "REAL_QPU + LOCAL_FALLBACK" if qs.get("connected") else "LOCAL_STATE_VECTOR",
+        "connection_message": qs.get("message", "")
+    })
+    return {**qs, "last_hardware_job": state["quantum"].get("last_hardware_job")}
+
+@app.post("/api/quantum/test")
+async def api_quantum_test():
+    result = await asyncio.to_thread(quantum_submit_probe, "Manual Quantum Forge hardware connectivity test")
+    if result.get("submitted"):
+        state["quantum"]["last_hardware_job"] = result
+        state["quantum"]["hardware_connected"] = True
+        state["quantum"]["provider"] = result.get("provider", "ibm")
+        state["quantum"]["backend"] = result.get("backend")
+        state["quantum"]["mode"] = "REAL_QPU + LOCAL_FALLBACK"
+        add_audit_sync("REAL_QPU_SUBMITTED", f"{result.get('provider')} / {result.get('backend')} / {result.get('job_id')}")
+        save_state_sync(state)
+    return result
+
+@app.get("/api/quantum/jobs/{job_id}")
+async def api_quantum_job(job_id: str):
+    return await asyncio.to_thread(quantum_job_status, job_id)
 
 @app.post("/api/projects")
 async def create_project(req: ProjectRequest):
