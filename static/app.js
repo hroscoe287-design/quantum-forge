@@ -4,7 +4,7 @@ const fmt=t=>t?new Date(t*1000).toLocaleString():"—";
 async function load(){
  try{
   const r=await fetch("/api/state?ts="+Date.now()); const s=await r.json();
-  $("#cycle").textContent=s.cycle; $("#cycle2").textContent=s.cycle; $("#projectCount").textContent=s.projects.length; $("#discoveryCount").textContent=s.discoveries.length;
+  $("#cycle").textContent=s.cycle; $("#agentCount").textContent=Object.keys(s.agents||{}).length; const rv=s.revenue||{}; $("#revenueStatus").textContent=rv.pipeline_status||"SCANNING"; $("#opportunityCount").textContent=rv.opportunities_found||0; $("#experimentCount").textContent=rv.experiments||0; $("#cycle2").textContent=s.cycle; $("#projectCount").textContent=s.projects.length; $("#discoveryCount").textContent=s.discoveries.length;
   $("#qmode").textContent=s.quantum.mode; $("#qnote").textContent=s.quantum.note; $("#qhardware").textContent=s.quantum.hardware_connected?"CONNECTED":"LOCAL ONLY"; $("#qbackend").textContent=s.quantum.backend||"—";
   $("#cycleStatus").textContent=s.cycle_status||"WAITING"; $("#currentActivity").textContent=s.current_activity||"Agents standing by";
   $("#lastStarted").textContent=fmt(s.last_cycle_started); $("#lastCompleted").textContent=fmt(s.last_cycle_completed); $("#duration").textContent=s.last_cycle_duration!=null?s.last_cycle_duration+"s":"—";
