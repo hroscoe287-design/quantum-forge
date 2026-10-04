@@ -9,6 +9,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 from quantum_agents import AGENT_ROLES, answer_chat, run_agent, synthesize
+from agent_org import BOSS_ROLES, DEPARTMENTS, boss_inputs, executive_report
 from quantum_cloud import config as quantum_config, job_status as quantum_job_status, status as quantum_status, submit_probe as quantum_submit_probe
 from neural_core import status as neural_status
 from memory_system import learn_from_cycle, recall, stats as memory_stats
@@ -37,6 +38,10 @@ def default_state():
         "current_project": None, "current_activity": "Agents standing by",
         "agents": {n: {"role": r, "status": "IDLE", "last_run": None, "jobs": 0,
                        "activity": "Standing by", "last_result": ""} for n, r in AGENT_ROLES},
+        "bosses": {n: {"role": r, "department": DEPARTMENTS.get(n, []), "status": "IDLE", "last_run": None,
+                       "jobs": 0, "activity": "Standing by", "last_result": ""} for n, r in BOSS_ROLES},
+        "executive": {"agent": "SupremeForgeCEO", "status": "IDLE", "last_run": None, "reports": 0,
+                      "last_report": "", "verified_revenue_usd": 0.0, "verified_costs_usd": 0.0},
         "projects": [], "discoveries": [], "jobs": [], "evidence": [], "audit": [],
         "memory": [], "report": "", "chat": [],
         "daily_reports": [], "daily_report_date": None,
@@ -61,6 +66,8 @@ def load_state():
             base.update(old)
             for n, r in AGENT_ROLES:
                 base["agents"].setdefault(n, default_state()["agents"][n])
+            for n, r in BOSS_ROLES:
+                base["bosses"].setdefault(n, default_state()["bosses"][n])
             return base
         except Exception:
             pass
@@ -237,7 +244,47 @@ async def process_project(project, prompt=None):
             state["quantum"]["note"] = "A real QPU job was submitted; local simulation remains available while hardware jobs queue."
         else:
             state["quantum"]["hardware_connected"] = False
-    report = await synthesize(objective, findings, state.get("report", ""))
+    # Department bosses review their assigned workers before the executive layer decides priorities.
+    boss_findings = []
+    for boss_name, boss_role in BOSS_ROLES:
+        b = state["bosses"][boss_name]
+        b["status"] = "WORKING"
+        b["activity"] = "Reviewing department findings"
+        b["last_run"] = time.time()
+        b["jobs"] += 1
+        department_context = boss_inputs(findings, DEPARTMENTS.get(boss_name, []))
+        boss_prompt = (
+            f"DEPARTMENT BOSS: {boss_name}\n"
+            f"MISSION: {boss_role}\n"
+            f"PROJECT: {objective}\n"
+            f"WORKER FINDINGS:\n{department_context}\n\n"
+            "Review the workers. Identify strongest evidence, failures, opportunities, "
+            "next actions, and what should be scaled, modified or killed. Never count forecasts as revenue."
+        )
+        result = await run_agent(boss_name, boss_role, objective, boss_prompt, literature)
+        boss_findings.append(result)
+        b["status"] = "COMPLETE"
+        b["activity"] = "Completed department review"
+        b["last_result"] = result["text"][:1200]
+
+    report = await synthesize(objective, findings + boss_findings, state.get("report", ""))
+    state["executive"]["status"] = "WORKING"
+    state["executive"]["last_run"] = time.time()
+    state["current_activity"] = "Supreme Forge CEO is reviewing departments and preparing the executive report"
+    verified_revenue = float(state.get("revenue", {}).get("verified_revenue_usd", 0.0) or 0.0)
+    verified_costs = float(state.get("revenue", {}).get("verified_costs_usd", 0.0) or 0.0)
+    exec_report = executive_report(
+        boss_findings,
+        verified_revenue,
+        verified_costs,
+        state["cycle"],
+        len(findings),
+    )
+    state["executive"]["last_report"] = exec_report
+    state["executive"]["reports"] += 1
+    state["executive"]["verified_revenue_usd"] = verified_revenue
+    state["executive"]["verified_costs_usd"] = verified_costs
+    state["executive"]["status"] = "COMPLETE"
     if project.get("system") == "REVENUE_LAB":
         state["revenue"]["last_scan"] = time.time()
         state["revenue"]["opportunities_found"] += sum(
@@ -291,6 +338,10 @@ async def process_project(project, prompt=None):
     for n, _ in AGENT_ROLES:
         state["agents"][n]["status"] = "IDLE"
         state["agents"][n]["activity"] = "Standing by"
+    for n, _ in BOSS_ROLES:
+        state["bosses"][n]["status"] = "IDLE"
+        state["bosses"][n]["activity"] = "Standing by"
+    state["executive"]["status"] = "IDLE"
     state["current_project"] = None
     state["current_activity"] = "Cycle complete — agents standing by"
     maybe_daily_report_sync()
@@ -337,7 +388,7 @@ async def api_state():
 async def health():
     qs = await asyncio.to_thread(quantum_status)
     return {"ok": True, "service": "quantum-forge", "version": app.version,
-            "agents": len(AGENT_ROLES), "cycle": state["cycle"],
+            "agents": len(AGENT_ROLES), "bosses": len(BOSS_ROLES), "executive_agent": "SupremeForgeCEO", "cycle": state["cycle"],
             "running": state["running"], "cycle_status": state["cycle_status"],
             "last_cycle_completed": state["last_cycle_completed"],
             "llm_configured": bool(os.getenv("OPENAI_API_KEY")),
