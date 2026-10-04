@@ -1,0 +1,46 @@
+{
+  "project": "BLOODLINE",
+  "episode": 1,
+  "title": "The Awakening",
+  "status": "render_ready",
+  "target_runtime_minutes": 10,
+  "production_pipeline": [
+    "Showrunner",
+    "Screenwriter",
+    "StoryboardAgent",
+    "CharacterContinuityAgent",
+    "VisualPromptAgent",
+    "VoiceMusicAgent",
+    "ThumbnailAgent",
+    "MediaQualityAgent"
+  ],
+  "render_rules": {
+    "original_ip_only": true,
+    "diamond_continuity_locked": true,
+    "visual_style": "dark cinematic supernatural battle-shonen anime",
+    "aspect_ratio": "16:9",
+    "target_resolution": "1920x1080",
+    "do_not_copy_existing_anime_characters": true
+  },
+  "shots": [
+    {"id":"S01","duration_sec":35,"scene":"Secret laboratory","visual":"Dr. Infinity races through a collapsing underground laboratory under red emergency lights carrying a damaged research drive.","audio":"alarms, smoke, distant impacts, tense original score","dialogue":"If you're seeing this, Diamond... then I failed to keep them away from you."},
+    {"id":"S02","duration_sec":20,"scene":"Laboratory warning","visual":"Dr. Infinity faces the camera beside an empty containment chamber as an unnatural shadow moves behind him.","audio":"low supernatural rumble, heartbeat","dialogue":"The serum was never the experiment."},
+    {"id":"S03","duration_sec":35,"scene":"Diamond bedroom","visual":"Diamond wakes from the nightmare and grips his blue diamond pendant as it pulses with faint energy.","audio":"quiet room tone, alarm, subtle energy pulse","dialogue":"Dad... Great. Another normal day. Okay. Maybe not."},
+    {"id":"S04","duration_sec":45,"scene":"College laboratory","visual":"Diamond works on an energy prototype; the pendant pulses and a mysterious symbol appears on the monitor.","audio":"lab ambience, electronics, rising mystery music","dialogue":"That's impossible."},
+    {"id":"S05","duration_sec":55,"scene":"Hidden message","visual":"Diamond discovers his father's encrypted recording and watches as the warning about the Bloodline is revealed.","audio":"digital interference, restrained score","dialogue":"There are people searching for something called the Bloodline. Do not trust anyone who tells you they know what happened to me."},
+    {"id":"S06","duration_sec":55,"scene":"Campus blackout","visual":"The college campus suddenly loses power; students flee while Diamond investigates a distant scream.","audio":"power shutdown, crowd panic, distant scream","dialogue":"Awaken what?"},
+    {"id":"S07","duration_sec":75,"scene":"The hunter","visual":"An original supernatural hunter attacks; Diamond protects a student and studies its movement before being overwhelmed.","audio":"fast combat impacts, debris, escalating score","dialogue":"Left shoulder drops before it strikes. Got you."},
+    {"id":"S08","duration_sec":75,"scene":"Bloodline awakening","visual":"Diamond's pendant cracks; electric-blue energy erupts, his eyes ignite blue, luminous markings appear across his arms and the environment reacts to his pressure.","audio":"heartbeat, energy surge, powerful original awakening motif","dialogue":"What... I can see you."},
+    {"id":"S09","duration_sec":60,"scene":"First counterattack","visual":"Diamond moves with accelerated perception and lands a controlled blue-energy counterattack that sends the hunter through the pavement.","audio":"impact, energy burst, debris","dialogue":"Whatever this is... my father knew."},
+    {"id":"S10","duration_sec":45,"scene":"The watchers","visual":"An unknown faction watches Diamond's awakening on a massive display and prepares hunters.","audio":"dark atmospheric score, low voices","dialogue":"The Bloodline has awakened. Then Diamond Infinity is alive. Prepare the hunters."},
+    {"id":"S11","duration_sec":20,"scene":"Final cliffhanger","visual":"Close-up of Diamond's cracked pendant as blue energy flickers; cut to black and reveal the next episode title.","audio":"single heartbeat, final musical hit","dialogue":"NEXT EPISODE: THE HUNTERS"}
+  ],
+  "quality_gate": [
+    "Diamond face, hair, skin tone, pendant and proportions remain consistent",
+    "No copyrighted characters, logos, costumes, weapons or copied scenes",
+    "Action remains readable and physically coherent",
+    "Audio dialogue is synchronized",
+    "No accidental text, watermarks or generation artifacts",
+    "Final cut must end on the intended cliffhanger"
+  ]
+}
