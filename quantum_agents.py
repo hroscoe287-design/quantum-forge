@@ -4,6 +4,7 @@ from typing import Any
 from built_in_ai import answer_local, reason_agent, synthesize_local
 from neural_core import generate as local_neural_generate
 from memory_system import recall
+from media_show_bible import SHOW_PROMPTS, production_directive
 from urllib.request import Request, urlopen
 from urllib.parse import quote_plus
 import re
@@ -308,8 +309,22 @@ async def run_agent(name: str, role: str, objective: str, context: str, evidence
         market_text = "\n\nPUBLIC MARKET SIGNALS:\n" + "\n".join(
             f"- {x['title']} | {x['url']}" for x in hits
         )
+    media_directive = ""
+    if name in {"AnimationStoryProducer", "KidsEducationProducer", "CharacterContinuityArtist",
+                "VideoPromptDirector", "JunoSeriesDirector", "SciFiAnimeProducer",
+                "BloodlineLoreAgent", "CyberpunkVisualDirector", "ActionChoreographyAgent",
+                "MediaRightsAuditor"}:
+        media_directive = "\n\nORIGINAL MEDIA DIRECTIVE:\n" + (
+            production_directive("Juno the Jumping Dolphin")
+            if name in {"KidsEducationProducer", "JunoSeriesDirector"} else
+            production_directive("Bloodline")
+            if name in {"SciFiAnimeProducer", "BloodlineLoreAgent", "CyberpunkVisualDirector", "ActionChoreographyAgent"} else
+            "Develop original Quantum Forge animation IP. Use StarryAI only for broad inspiration and rebuild the result as original characters, environments and compositions."
+        )
+
     prompt = f"""ROLE: {name}
 MISSION: {role}
+{media_directive}
 
 PROJECT OBJECTIVE:
 {objective}
