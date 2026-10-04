@@ -63,6 +63,7 @@ designs, cinematic composition, original IP."""
     },
     "Bloodline": {
         "format": "original cyberpunk anime series, shorts, trailers and mini-movie concepts",
+        "canonical_character": "Diamond Infinity — use bloodline_character_bible.py as the locked continuity reference.",
         "core": """Bloodline follows Diamond Infinity, a college student who wants to become a scientist
 like his late father. His father created an experimental serum intended to help
 Diamond's sick sister, Eternity Infinity, but a powerful government-linked weapons
@@ -102,6 +103,7 @@ def production_directive(show_name: str) -> str:
         f"CREATE ORIGINAL CONTENT FOR: {show_name}\n"
         f"FORMAT: {brief['format']}\n"
         f"CORE: {brief['core']}\n"
+        + (diamond_directive() if show_name == "Bloodline" else "")
         "RULE: Use StarryAI outputs or other references only to study broad visual "
         "qualities. Rebuild the characters, environments and compositions as original "
         "Quantum Forge IP. Do not reproduce protected characters, logos, exact scenes, "
