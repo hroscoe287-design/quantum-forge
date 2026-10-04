@@ -5,6 +5,8 @@ from built_in_ai import answer_local, reason_agent, synthesize_local
 from neural_core import generate as local_neural_generate
 from memory_system import recall
 from urllib.request import Request, urlopen
+from urllib.parse import quote_plus
+import re
 
 AGENT_ROLES = [
     ("Coordinator", "Break the objective into a research plan and assign priorities."),
@@ -17,6 +19,7 @@ AGENT_ROLES = [
     ("Evidence", "Check provenance, quality, contradictions and missing evidence."),
     ("Critic", "Actively try to falsify the strongest conclusions and expose overclaims."),
     ("Learning", "Extract durable lessons, update memory and identify the next best research question."),
+    ("Venture", "Find legitimate ways the Forge can create revenue: customer problems, products, pricing, distribution, validation tests and unit economics. Never assume revenue is guaranteed and never take financial actions without human approval."),
 ]
 
 SYSTEM = """You are an autonomous research agent inside Quantum Forge.
@@ -59,9 +62,40 @@ async def ask_llm(prompt: str, temperature: float = 0.2) -> str:
     except Exception as exc:
         return f"LLM connector error: {type(exc).__name__}: {exc}"
 
+
+def market_search(query: str, limit: int = 5) -> list[dict[str, str]]:
+    """Lightweight public-market discovery for the Venture agent."""
+    url = "https://html.duckduckgo.com/html/?q=" + quote_plus(query)
+    try:
+        req = Request(url, headers={"User-Agent": "QuantumForge/1.0 market research"})
+        with urlopen(req, timeout=15) as r:
+            html = r.read().decode("utf-8", errors="replace")
+        results = []
+        for m in re.finditer(r'<a[^>]+class="result__a"[^>]+href="([^"]+)"[^>]*>(.*?)</a>', html, re.S | re.I):
+            href, title = m.groups()
+            title = re.sub(r"<.*?>", "", title).strip()
+            if title and href:
+                results.append({"title": title[:240], "url": href[:1000]})
+            if len(results) >= limit:
+                break
+        return results
+    except Exception:
+        return []
+
+
 async def run_agent(name: str, role: str, objective: str, context: str, evidence=None) -> dict[str, Any]:
     memories = recall(objective + " " + context, limit=8)
     memory_text = "\n".join("- " + str(m.get("content",""))[:900] for m in memories)
+    market_text = ""
+    if name == "Venture":
+        market_hits = await asyncio.to_thread(
+            market_search,
+            f"{objective} customer demand business opportunity SaaS pricing monetization"
+        )
+        market_text = "\n\nPUBLIC MARKET SIGNALS:\n" + "\n".join(
+            f"- {x['title']} | {x['url']}" for x in market_hits
+        )
+
     prompt = f"""ROLE: {name}
 MISSION: {role}
 
@@ -70,12 +104,14 @@ PROJECT OBJECTIVE:
 
 CURRENT RESEARCH MEMORY:
 {context[:12000]}
+{market_text}
 
 Work independently. Return:
 1. What you learned.
 2. Evidence or reasoning supporting it.
 3. What could be wrong.
 4. One concrete next research action.
+5. If this is the Venture role: identify the target customer, proposed offer, realistic pricing model, acquisition channel, validation test, estimated gross-margin logic, and the biggest reason the idea could fail.
 Keep it concise but substantive."""
     result = await ask_llm(prompt, 0.35)
     if not result:
@@ -98,6 +134,9 @@ PROJECT:
 
 PRIOR MEMORY:
 {memory[:10000]}
+
+RETRIEVED MEMORY:
+{retrieved[:7000]}
 
 NEW MULTI-AGENT FINDINGS:
 {joined[:30000]}
