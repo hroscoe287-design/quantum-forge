@@ -10,6 +10,7 @@ BOSS_ROLES = [
     ("TradingBoss", "Lead market and trading research. Require backtesting, out-of-sample validation, risk controls and paper-trading evidence before any live-trading consideration."),
     ("CommercializationBoss", "Find organizations and customers that could license, buy or sponsor promising inventions, research, software and services. Prepare compliant commercialization opportunities for approval."),
     ("AuditRiskBoss", "Independently audit scientific, business and trading claims. Reject unsupported results, fabricated revenue, unsafe medical claims and noncompliant actions."),
+    ("MediaProductionBoss", "Lead the Bloodline production department from story development through quality control and YouTube-ready packaging. Require original IP and canonical character continuity.");
 ]
 
 DEPARTMENTS = {
@@ -21,6 +22,7 @@ DEPARTMENTS = {
     "TradingBoss": ["MarketScanner","TechnicalStrategy","PriceAction","Volume","Volatility","Catalyst","Pattern","Backtest","WalkForward","MonteCarlo","TradingRisk","ExecutionResearch","Regime","StrategyCritic","PaperTrader","TradingAuditor"],
     "CommercializationBoss": ["Venture","Product","Sales","Pricing","Customer","Opportunity","Services"],
     "AuditRiskBoss": ["RiskCompliance","Auditor","TradingAuditor","Evidence","Critic","StrategyCritic"],
+    "MediaProductionBoss": ["Showrunner","Screenwriter","StoryboardAgent","CharacterContinuityAgent","VisualPromptAgent","VoiceMusicAgent","ThumbnailAgent","MediaQualityAgent"],
 }
 
 def boss_inputs(findings: list[dict[str, Any]], names: list[str], max_chars: int = 16000) -> str:
