@@ -1,40 +1,35 @@
 # Quantum Forge
 
-Quantum Forge is a unified AI research and invention workspace.
+Quantum Forge is an autonomous multi-agent AI research and invention workspace.
 
-## Current engine
+## Real agent architecture
 
-- FastAPI command center
-- 10 coordinated research agents
-- Autonomous background research cycles
-- Real arXiv literature retrieval
-- Evidence records attached to discovery branches
-- Dependency-free local state-vector quantum simulation for small search spaces
-- Competing computational branches with probability distributions
-- Audit trail and job history
-- Disease/science, invention and engineering project intake
-- Safety gates: hypotheses are not presented as validated cures or treatments
-- Render deployment blueprint
+- **10 specialized AI agents** run independent research passes.
+- **Coordinator** decomposes objectives and organizes the cycle.
+- **Research / Evidence / Critic** agents challenge evidence and overclaims.
+- **Discovery / Invention / Engineering / Simulation** agents turn findings into competing designs and tests.
+- **Quantum** runs a real local state-vector simulator for small search spaces.
+- **Learning** writes durable research lessons into the Forge memory.
+- A **Lead AI** synthesizes the findings into a living report and answers user questions.
+- Public arXiv literature is retrieved and attached to discovery records.
+- The dashboard shows actual agent state, last work, research cycles, memory, report and chat.
 
-## What the quantum layer means
+## Continuous learning
 
-Quantum Forge currently runs a real **local simulator** for small state-vector experiments. It does not claim access to physical quantum hardware unless a provider is actually connected.
+The Forge learns through persistent research memory, new evidence, previous findings, contradictions and repeated research cycles. It does **not** silently modify model weights or claim human-level general intelligence.
 
-The “multiverse” workspace represents parallel computational hypothesis branches. It is not a claim that the application can communicate with alternate universes.
+The language model is provided through an OpenAI-compatible `/v1/chat/completions` endpoint. Set:
 
-## Research behavior
+- `OPENAI_API_KEY`
+- `OPENAI_MODEL` (default: `gpt-5-mini`)
+- optionally `OPENAI_BASE_URL` for another compatible provider.
 
-When a project is active, the autonomous engine periodically:
+Without a model key, the orchestration and quantum/literature pipeline still runs, but agents explicitly report that language reasoning is unavailable instead of fabricating results.
 
-1. extracts research terms from the project objective;
-2. searches the public arXiv literature feed;
-3. stores literature signals as evidence;
-4. explores multiple computational branches with the quantum simulator;
-5. creates a traceable hypothesis/discovery record;
-6. updates project evidence status and the audit trail.
+## Quantum boundary
 
-External LLM providers, larger scientific datasets, durable queues, databases and physical quantum providers can be added through adapters without changing the core project model.
+The current quantum layer is a genuine local state-vector simulation. It is not physical quantum hardware. The "multiverse" workspace means parallel computational hypothesis branches; it does not communicate with alternate universes.
 
-## Scientific boundary
+## Medical/scientific safety
 
-Quantum Forge can accelerate exploration and organize hypotheses. It cannot guarantee cures, prove a treatment is safe, replace clinical trials, or validate an invention without independent testing.
+Quantum Forge can organize evidence and generate hypotheses for research. It cannot guarantee cures, prove a treatment is safe, replace clinical trials, diagnose patients, or authorize experiments. Medical conclusions require qualified human review and independent validation.
