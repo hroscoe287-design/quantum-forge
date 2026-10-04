@@ -3,6 +3,7 @@ import asyncio, json, os, time, uuid
 from typing import Any
 from built_in_ai import answer_local, reason_agent, synthesize_local
 from neural_core import generate as local_neural_generate
+from memory_system import recall
 from urllib.request import Request, urlopen
 
 AGENT_ROLES = [
@@ -59,6 +60,8 @@ async def ask_llm(prompt: str, temperature: float = 0.2) -> str:
         return f"LLM connector error: {type(exc).__name__}: {exc}"
 
 async def run_agent(name: str, role: str, objective: str, context: str, evidence=None) -> dict[str, Any]:
+    memories = recall(objective + " " + context, limit=8)
+    memory_text = "\n".join("- " + str(m.get("content",""))[:900] for m in memories)
     prompt = f"""ROLE: {name}
 MISSION: {role}
 
@@ -87,6 +90,8 @@ Keep it concise but substantive."""
 
 async def synthesize(objective: str, findings: list[dict[str, Any]], memory: str) -> str:
     joined = "\n\n".join(f"[{x['agent']}]\n{x['text']}" for x in findings)
+    memories = recall(objective + " " + memory, limit=12)
+    retrieved = "\n".join("- " + str(m.get("content",""))[:900] for m in memories)
     prompt = f"""You are the senior synthesis agent.
 PROJECT:
 {objective}
@@ -110,6 +115,8 @@ Never present a hypothesis as a proven cure, treatment, invention, or scientific
     return result or await asyncio.to_thread(synthesize_local, objective, findings, memory)
 
 async def answer_chat(question: str, report: str, memory: str) -> str:
+    memories = recall(question + " " + report, limit=12)
+    retrieved = "\n".join("- " + str(m.get("content",""))[:900] for m in memories)
     prompt = f"""You are the conversational lead of Quantum Forge.
 Answer the user's question using the living research report and memory below.
 If the evidence is insufficient, say so and propose the next research step.
