@@ -2,6 +2,7 @@ from __future__ import annotations
 import asyncio, json, os, time, uuid
 from typing import Any
 from built_in_ai import answer_local, reason_agent, synthesize_local
+from neural_core import generate as local_neural_generate
 from urllib.request import Request, urlopen
 
 AGENT_ROLES = [
@@ -33,7 +34,7 @@ def _api_config():
 async def ask_llm(prompt: str, temperature: float = 0.2) -> str:
     key, base, model = _api_config()
     if not key:
-        return ""
+        return await asyncio.to_thread(local_neural_generate, SYSTEM, prompt, temperature, 900)
     payload = {
         "model": model,
         "messages": [
