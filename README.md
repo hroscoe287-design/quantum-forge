@@ -2,29 +2,39 @@
 
 Quantum Forge is a unified AI research and invention workspace.
 
-## Current foundation
+## Current engine
 
-- FastAPI backend
-- Responsive command-center UI
-- Persistent local project/state store
-- Autonomous agent-cycle orchestration
-- Disease/science research project intake
-- Invention and engineering project intake
-- Discovery branches with confidence/evidence fields
-- Quantum provider abstraction point with simulation fallback
-- Audit trail
+- FastAPI command center
+- 10 coordinated research agents
+- Autonomous background research cycles
+- Real arXiv literature retrieval
+- Evidence records attached to discovery branches
+- Dependency-free local state-vector quantum simulation for small search spaces
+- Competing computational branches with probability distributions
+- Audit trail and job history
+- Disease/science, invention and engineering project intake
+- Safety gates: hypotheses are not presented as validated cures or treatments
 - Render deployment blueprint
 
-## Important scientific boundary
+## What the quantum layer means
 
-The Forge can continuously explore literature, datasets, simulations, hypotheses and design alternatives. It cannot literally access alternate universes, guarantee cures, or replace clinical/engineering validation. “Multiverse Sandbox” means parallel computational hypothesis branches.
+Quantum Forge currently runs a real **local simulator** for small state-vector experiments. It does not claim access to physical quantum hardware unless a provider is actually connected.
 
-## Next integrations
+The “multiverse” workspace represents parallel computational hypothesis branches. It is not a claim that the application can communicate with alternate universes.
 
-1. LLM provider and structured research agents
-2. Scientific literature/data connectors
-3. Quantum SDK/provider adapters (local simulators first, hardware when credentials exist)
-4. CAD/geometry generation and export
-5. Postgres + durable job queue
-6. Background workers for true long-running workloads
-7. Evidence scoring, reproducibility and human approval gates
+## Research behavior
+
+When a project is active, the autonomous engine periodically:
+
+1. extracts research terms from the project objective;
+2. searches the public arXiv literature feed;
+3. stores literature signals as evidence;
+4. explores multiple computational branches with the quantum simulator;
+5. creates a traceable hypothesis/discovery record;
+6. updates project evidence status and the audit trail.
+
+External LLM providers, larger scientific datasets, durable queues, databases and physical quantum providers can be added through adapters without changing the core project model.
+
+## Scientific boundary
+
+Quantum Forge can accelerate exploration and organize hypotheses. It cannot guarantee cures, prove a treatment is safe, replace clinical trials, or validate an invention without independent testing.
