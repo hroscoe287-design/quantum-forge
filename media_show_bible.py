@@ -104,7 +104,7 @@ def production_directive(show_name: str) -> str:
         f"FORMAT: {brief['format']}\n"
         f"CORE: {brief['core']}\n"
         + (diamond_directive() if show_name == "Bloodline" else "")
-        "RULE: Use StarryAI outputs or other references only to study broad visual "
+        + "RULE: Use StarryAI outputs or other references only to study broad visual "
         "qualities. Rebuild the characters, environments and compositions as original "
         "Quantum Forge IP. Do not reproduce protected characters, logos, exact scenes, "
         "or another creator's artwork.\n"
