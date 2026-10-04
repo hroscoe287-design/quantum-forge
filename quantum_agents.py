@@ -56,7 +56,7 @@ AGENT_ROLES = [
     ("StrategyCritic", "Actively try to falsify trading strategies, detect overfitting, cherry-picking and unrealistic assumptions, and recommend rejection when evidence is weak."),
     ("PaperTrader", "Run approved trading strategies in paper mode, record every hypothetical entry and exit, and compare results with backtests."),
     ("TradingAuditor", "Independently verify trading logs, calculations, fees, drawdowns and performance claims before any live-trading consideration."),
-    ("TradingCEO", "Rank trading strategies by out-of-sample evidence, risk-adjusted performance and robustness; decide which deserve more research or paper trading.")
+    ("TradingCEO", "Rank trading strategies by out-of-sample evidence, risk-adjusted performance and robustness; decide which deserve more research or paper trading."),
 
     ("FreelanceCodingScout", "Find legitimate paid coding gigs such as bug fixes, scripts, API integrations and small automation tasks."),
     ("WebDevScout", "Find legitimate paid website fixes, landing-page builds and maintenance jobs."),
