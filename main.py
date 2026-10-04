@@ -10,6 +10,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 from quantum_agents import AGENT_ROLES, answer_chat, run_agent, synthesize
 from quantum_cloud import config as quantum_config, job_status as quantum_job_status, status as quantum_status, submit_probe as quantum_submit_probe
+from neural_core import status as neural_status
 
 ROOT = Path(__file__).parent
 DATA = ROOT / "data"
@@ -251,7 +252,7 @@ async def health():
             "running": state["running"], "cycle_status": state["cycle_status"],
             "last_cycle_completed": state["last_cycle_completed"],
             "llm_configured": bool(os.getenv("OPENAI_API_KEY")),\n            "built_in_ai": True,\n            "ai_mode": "EXTERNAL_LLM + BUILT_IN_FALLBACK" if os.getenv("OPENAI_API_KEY") else "BUILT_IN_COGNITIVE_CORE",
-            "quantum": qs}
+            "quantum": qs, "neural_core": neural_status()}
 
 @app.get("/api/quantum/status")
 async def api_quantum_status():
