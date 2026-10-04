@@ -14,6 +14,7 @@ from quantum_cloud import config as quantum_config, job_status as quantum_job_st
 from neural_core import status as neural_status
 from memory_system import learn_from_cycle, recall, stats as memory_stats
 from revenue_engine import build_offer, create_payment_link, offer_html, stripe_configured
+from payout_ledger import ensure_ledger, recompute_summary, request_daily_payout, approve_payout, reject_payout
 
 ROOT = Path(__file__).parent
 DATA = ROOT / "data"
@@ -76,6 +77,8 @@ def load_state():
     return s
 
 state = load_state()
+ensure_ledger(state)
+recompute_summary(state)
 
 class ProjectRequest(BaseModel):
     name: str = Field(min_length=1, max_length=120)
@@ -475,6 +478,39 @@ async def latest_daily_report():
     maybe_daily_report_sync()
     save_state_sync(state)
     return (state.get("daily_reports") or [{}])[0]
+
+@app.get("/api/payouts/ledger")
+async def payout_ledger():
+    ensure_ledger(state)
+    return {"summary": recompute_summary(state), "settings": state["payout_settings"], "ledger": state["payout_ledger"][:200]}
+
+@app.get("/api/payouts/status")
+async def payout_status():
+    ensure_ledger(state)
+    return {"summary": recompute_summary(state), "pending_approval": [x for x in state["payout_ledger"] if x.get("type") == "PAYOUT" and x.get("payout_status") == "PENDING_OWNER_APPROVAL"]}
+
+@app.post("/api/payouts/daily/request")
+async def daily_payout_request():
+    result = request_daily_payout(state)
+    add_audit_sync("DAILY_PAYOUT_REQUESTED", str(result)[:1000])
+    save_state_sync(state)
+    return result
+
+@app.post("/api/payouts/{payout_id}/approve")
+async def payout_approve(payout_id: str, req: RevenueApproval):
+    result = approve_payout(state, payout_id, req.approved_by, req.note)
+    if result.get("ok"):
+        add_audit_sync("PAYOUT_APPROVED", payout_id + ": $" + f"{result['payout']['amount_usd']:.2f}")
+        save_state_sync(state)
+    return result
+
+@app.post("/api/payouts/{payout_id}/reject")
+async def payout_reject(payout_id: str, req: RevenueApproval):
+    result = reject_payout(state, payout_id, req.approved_by, req.note)
+    if result.get("ok"):
+        add_audit_sync("PAYOUT_REJECTED", payout_id + ": " + req.note[:180])
+        save_state_sync(state)
+    return result
 
 @app.get("/api/revenue/proposals")
 async def revenue_proposals():
