@@ -39,6 +39,7 @@ def default_state():
                        "activity": "Standing by", "last_result": ""} for n, r in AGENT_ROLES},
         "projects": [], "discoveries": [], "jobs": [], "evidence": [], "audit": [],
         "memory": [], "report": "", "chat": [],
+        "daily_reports": [], "daily_report_date": None,
         "revenue": {"enabled": REVENUE_MODE, "opportunities_found": 0, "experiments": 0, "pipeline_status": "SCANNING", "last_scan": None, "note": "Agents research and prepare revenue opportunities continuously; human approval is required before sales, spending, contracts, or financial transactions.", "proposals": [], "approved": [], "rejected": [], "offers": [], "verified_revenue_usd": 0.0, "checkout_provider": "stripe", "checkout_configured": stripe_configured()},
         "quantum": {
             "mode": "LOCAL_STATE_VECTOR", "provider": "local",
@@ -84,6 +85,33 @@ class ChatRequest(BaseModel):
 class RevenueApproval(BaseModel):
     approved_by: str = Field(default="owner", min_length=1, max_length=120)
     note: str = Field(default="", max_length=2000)
+
+def maybe_daily_report_sync():
+    """Create one daily operating report from recorded state and verified revenue only."""
+    today = time.strftime("%Y-%m-%d", time.gmtime())
+    if state.get("daily_report_date") == today:
+        return
+    rv = state.get("revenue", {})
+    offers = rv.get("offers", [])
+    live_offers = sum(1 for x in offers if x.get("status") == "LIVE")
+    verified = float(rv.get("verified_revenue_usd", 0.0) or 0.0)
+    report = {
+        "date": today,
+        "generated_at": time.time(),
+        "cycles_completed": state.get("cycle", 0),
+        "agents": len(AGENT_ROLES),
+        "projects": len(state.get("projects", [])),
+        "discoveries": len(state.get("discoveries", [])),
+        "revenue_opportunities": rv.get("opportunities_found", 0),
+        "revenue_experiments": rv.get("experiments", 0),
+        "live_offers": live_offers,
+        "verified_revenue_usd": verified,
+        "decision": "Use verified results to scale, modify or kill experiments; forecasts are not counted as revenue.",
+    }
+    state.setdefault("daily_reports", []).insert(0, report)
+    state["daily_reports"] = state["daily_reports"][:90]
+    state["daily_report_date"] = today
+    add_audit_sync("DAILY_REVENUE_REPORT", f"{today}: verified revenue $"+f"{verified:.2f}"+f"; {live_offers} live offers")
 
 def add_audit_sync(action, detail):
     state["audit"].insert(0, {"id": str(uuid.uuid4()), "time": time.time(),
@@ -265,6 +293,7 @@ async def process_project(project, prompt=None):
         state["agents"][n]["activity"] = "Standing by"
     state["current_project"] = None
     state["current_activity"] = "Cycle complete — agents standing by"
+    maybe_daily_report_sync()
     save_state_sync(state)
 
 async def autonomous_cycle():
@@ -373,6 +402,18 @@ async def run_agents(req: AgentRequest):
             return {"error": "Project not found"}
         await process_project(p, req.prompt)
         return {"job": state["jobs"][0], "discovery": state["discoveries"][0]}
+
+@app.get("/api/reports/daily")
+async def daily_reports():
+    maybe_daily_report_sync()
+    save_state_sync(state)
+    return state.get("daily_reports", [])
+
+@app.get("/api/reports/daily/latest")
+async def latest_daily_report():
+    maybe_daily_report_sync()
+    save_state_sync(state)
+    return (state.get("daily_reports") or [{}])[0]
 
 @app.get("/api/revenue/proposals")
 async def revenue_proposals():
