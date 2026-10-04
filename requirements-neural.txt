@@ -1,0 +1,3 @@
+# Optional self-hosted neural runtime
+# Install this only on a machine with enough CPU/RAM/GPU for the chosen GGUF model.
+llama-cpp-python>=0.3.16,<1
