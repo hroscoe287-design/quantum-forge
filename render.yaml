@@ -14,3 +14,11 @@ services:
         value: "gpt-5-mini"
       - key: OPENAI_API_KEY
         sync: false
+      - key: QUANTUM_HARDWARE_ENABLED
+        value: "false"
+      - key: QUANTUM_PROVIDER
+        value: "ibm"
+      - key: IBM_QUANTUM_BACKEND
+        value: "ibm_brisbane"
+      - key: QUANTUM_SHOTS
+        value: "128"
