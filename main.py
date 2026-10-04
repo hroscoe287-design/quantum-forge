@@ -12,6 +12,7 @@ from quantum_agents import AGENT_ROLES, answer_chat, run_agent, synthesize
 from quantum_cloud import config as quantum_config, job_status as quantum_job_status, status as quantum_status, submit_probe as quantum_submit_probe
 from neural_core import status as neural_status
 from memory_system import learn_from_cycle, recall, stats as memory_stats
+from revenue_engine import build_offer, create_payment_link, offer_html, stripe_configured
 
 ROOT = Path(__file__).parent
 DATA = ROOT / "data"
@@ -38,7 +39,7 @@ def default_state():
                        "activity": "Standing by", "last_result": ""} for n, r in AGENT_ROLES},
         "projects": [], "discoveries": [], "jobs": [], "evidence": [], "audit": [],
         "memory": [], "report": "", "chat": [],
-        "revenue": {"enabled": REVENUE_MODE, "opportunities_found": 0, "experiments": 0, "pipeline_status": "SCANNING", "last_scan": None, "note": "Agents research and prepare revenue opportunities continuously; human approval is required before sales, spending, contracts, or financial transactions.", "proposals": [], "approved": [], "rejected": []},
+        "revenue": {"enabled": REVENUE_MODE, "opportunities_found": 0, "experiments": 0, "pipeline_status": "SCANNING", "last_scan": None, "note": "Agents research and prepare revenue opportunities continuously; human approval is required before sales, spending, contracts, or financial transactions.", "proposals": [], "approved": [], "rejected": [], "offers": [], "verified_revenue_usd": 0.0, "checkout_provider": "stripe", "checkout_configured": stripe_configured()},
         "quantum": {
             "mode": "LOCAL_STATE_VECTOR", "provider": "local",
             "hardware_connected": False, "backend": None, "qubits": 8,
@@ -221,12 +222,12 @@ async def process_project(project, prompt=None):
             "id": str(uuid.uuid4()),
             "created_at": time.time(),
             "project_id": project["id"],
-            "title": "Revenue experiment from Forge cycle",
+            "title": "Forge-selected revenue offer",
             "description": report[:4000],
             "status": "PENDING_APPROVAL",
-            "action": "RESEARCH_AND_BUILD_REVENUE_EXPERIMENT",
+            "action": "BUILD_AND_PUBLISH_SELLABLE_RESEARCH_OFFER",
             "risk": "No money is spent and no external message, contract, or financial transaction is executed until approval.",
-            "requested_scope": "Build and execute only the specific revenue experiment described in this proposal after owner approval."
+            "requested_scope": "After approval, Forge may build the specific offer, create a Stripe checkout only if STRIPE_SECRET_KEY is configured, and publish the offer page. Customer acquisition remains subject to approved channels."
         }
         state["revenue"].setdefault("proposals", []).insert(0, proposal)
         state["revenue"]["proposals"] = state["revenue"]["proposals"][:100]
@@ -377,6 +378,23 @@ async def run_agents(req: AgentRequest):
 async def revenue_proposals():
     return state.get("revenue", {}).get("proposals", [])
 
+@app.get("/api/revenue/offers")
+async def revenue_offers():
+    return state.get("revenue", {}).get("offers", [])
+
+@app.get("/api/revenue/status")
+async def revenue_status():
+    rv = state.get("revenue", {})
+    return {"stripe_configured": stripe_configured(), "offers": rv.get("offers", []), "verified_revenue_usd": rv.get("verified_revenue_usd", 0.0), "note": "Revenue is counted only after a real customer payment is independently verified."}
+
+@app.get("/offer/{proposal_id}")
+async def public_offer(proposal_id: str):
+    offer = next((x for x in state.get("revenue", {}).get("offers", []) if x.get("proposal_id") == proposal_id), None)
+    if not offer:
+        return {"error":"Offer not found"}
+    from fastapi.responses import HTMLResponse
+    return HTMLResponse(offer_html(offer))
+
 @app.post("/api/revenue/proposals/{proposal_id}/approve")
 async def approve_revenue(proposal_id: str, req: RevenueApproval):
     proposals = state.get("revenue", {}).setdefault("proposals", [])
@@ -391,9 +409,24 @@ async def approve_revenue(proposal_id: str, req: RevenueApproval):
     p["approval_note"] = req.note
     state["revenue"].setdefault("approved", []).insert(0, p)
     state["revenue"]["approved"] = state["revenue"]["approved"][:100]
-    add_audit_sync("REVENUE_APPROVED", f"{p.get('title','proposal')} approved by {req.approved_by}. Execution remains limited to configured integrations.")
+    base_url = os.getenv("FORGE_PUBLIC_URL", "https://quantum-forge-v52h.onrender.com")
+    offer = build_offer(p, base_url)
+    state["revenue"].setdefault("offers", []).insert(0, offer)
+    state["revenue"]["offers"] = state["revenue"]["offers"][:100]
+    if stripe_configured():
+        checkout = create_payment_link(offer["title"], offer["description"], offer["price_usd"], base_url + "/offer/" + p["id"])
+        if checkout.get("ok"):
+            offer.update({"status":"LIVE","payment_url":checkout.get("payment_url"),"stripe_product_id":checkout.get("product_id"),"stripe_price_id":checkout.get("price_id"),"stripe_payment_link_id":checkout.get("payment_link_id")})
+            add_audit_sync("REVENUE_CHECKOUT_CREATED", f"{offer['title']} checkout created at {offer.get('payment_url')}")
+        else:
+            offer["status"]="CHECKOUT_ERROR"; offer["checkout_error"]=checkout.get("error")
+            add_audit_sync("REVENUE_CHECKOUT_ERROR", checkout.get("error","unknown checkout error"))
+    else:
+        offer["status"]="READY_FOR_CHECKOUT"
+        add_audit_sync("REVENUE_OFFER_BUILT", f"{offer['title']} built; Stripe is not configured, so no payment checkout was created.")
+    state["revenue"]["checkout_configured"] = stripe_configured()
     save_state_sync(state)
-    return {"ok": True, "proposal": p, "next": "Execute only the specifically approved action through a configured integration."}
+    return {"ok": True, "proposal": p, "offer": offer, "next": "Share the published offer page and use verified customer payments as the revenue source."}
 
 @app.post("/api/revenue/proposals/{proposal_id}/reject")
 async def reject_revenue(proposal_id: str, req: RevenueApproval):
