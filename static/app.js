@@ -10,7 +10,7 @@ async function load(){
   $("#lastStarted").textContent=fmt(s.last_cycle_started); $("#lastCompleted").textContent=fmt(s.last_cycle_completed); $("#duration").textContent=s.last_cycle_duration!=null?s.last_cycle_duration+"s":"—";
   $("#agentList").innerHTML=Object.entries(s.agents).map(([n,a])=>'<div class="agent '+(a.status==="WORKING"?"working":a.status==="COMPLETE"?"complete":"")+'"><div><b>'+esc(n)+'</b><small>'+esc(a.role)+'</small><em>'+esc(a.activity||"Standing by")+'</em><p class="muted">'+esc(a.last_result||"")+'</p></div><span class="status">'+esc(a.status)+(a.status==="WORKING"?' <i class="pulse"></i>':"")+'</span></div>').join("");
   $("#projectList").innerHTML=s.projects.length?s.projects.map(p=>'<div class="item"><h3>'+esc(p.name)+'</h3><p>'+esc(p.objective)+'</p><span class="muted">'+esc(p.kind)+' • '+esc(p.evidence_level)+' • '+esc(p.status)+'</span></div>').join(""):'<div class="card">No projects yet.</div>';
-  $("#discoveryList").innerHTML=s.discoveries.length?s.discoveries.map(d=>'<div class="item"><h3>'+esc(d.title)+'</h3><p>'+esc(d.summary)+'</p><span class="muted">HYPOTHESIS • agents '+(d.agent_findings?.length||0)+' • quantum branches '+(d.quantum_result?.branches||0)+'</span></div>').join(""):'<div class="card">No discovery branches yet.</div>';
+  const proposals=(rv.proposals||[]); const pending=proposals.filter(p=>p.status==="PENDING_APPROVAL"); $("#approvalCount").textContent=pending.length; $("#approvalList").innerHTML=pending.length?pending.slice(0,10).map(p=>'<div class="item"><h3>'+esc(p.title)+'</h3><p>'+esc(p.description)+'</p><span class="muted">REQUESTED: '+esc(p.action)+'</span><div class="approval-actions"><button class="approve-btn" data-id="'+esc(p.id)+'">APPROVE & AUTHORIZE</button><button class="reject-btn" data-id="'+esc(p.id)+'">REJECT</button></div></div>').join(""):'<div class="muted">No revenue action is waiting for approval.</div>'; document.querySelectorAll(".approve-btn").forEach(b=>b.onclick=()=>approveRevenue(b.dataset.id)); document.querySelectorAll(".reject-btn").forEach(b=>b.onclick=()=>rejectRevenue(b.dataset.id)); $("#discoveryList").innerHTML=s.discoveries.length?s.discoveries.map(d=>'<div class="item"><h3>'+esc(d.title)+'</h3><p>'+esc(d.summary)+'</p><span class="muted">HYPOTHESIS • agents '+(d.agent_findings?.length||0)+' • quantum branches '+(d.quantum_result?.branches||0)+'</span></div>').join(""):'<div class="card">No discovery branches yet.</div>';
   $("#reportText").textContent=s.report||"No synthesis yet. Start a project to create the first living report.";
   $("#memoryList").innerHTML=(s.memory||[]).slice(0,20).map(m=>'<div class="item"><p>'+esc(m.lesson)+'</p><span class="muted">'+fmt(m.time)+'</span></div>').join("")||'<div class="muted">Learning memory is empty.</div>';
   $("#chatLog").innerHTML=(s.chat||[]).map(m=>'<div class="chat '+(m.role==="user"?"user":"ai")+'"><b>'+esc(m.role==="user"?"YOU":"LEAD AI")+'</b><p>'+esc(m.content)+'</p></div>').join("");
@@ -22,3 +22,13 @@ $("#chatForm").addEventListener("submit",async e=>{e.preventDefault();const inpu
 document.querySelectorAll(".tab").forEach(b=>b.onclick=()=>{document.querySelectorAll(".tab,.panel").forEach(x=>x.classList.remove("active"));b.classList.add("active");$("#"+b.dataset.tab).classList.add("active");});
 document.getElementById("qtest").addEventListener("click",async()=>{const b=document.getElementById("qtest");b.disabled=true;b.textContent="SUBMITTING…";try{const r=await fetch("/api/quantum/test",{method:"POST"});const x=await r.json();alert(x.submitted?"Real QPU job submitted: "+x.job_id:(x.reason||x.message||"Quantum test failed"));await load();}finally{b.disabled=false;b.textContent="TEST REAL QPU";}});
 load();setInterval(load,2000);
+
+async function approveRevenue(id){
+  if(!confirm("Approve this specific revenue experiment?")) return;
+  const r=await fetch("/api/revenue/proposals/"+id+"/approve",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({approved_by:"owner",note:"Approved in Quantum Forge dashboard"})});
+  const x=await r.json(); alert(x.ok?"Approved and authorized.":"Approval failed: "+(x.error||"unknown error")); await load();
+}
+async function rejectRevenue(id){
+  const r=await fetch("/api/revenue/proposals/"+id+"/reject",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({approved_by:"owner",note:"Rejected in Quantum Forge dashboard"})});
+  const x=await r.json(); alert(x.ok?"Rejected.":"Rejection failed: "+(x.error||"unknown error")); await load();
+}
