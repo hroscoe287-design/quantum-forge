@@ -5,3 +5,12 @@ services:
     buildCommand: pip install -r requirements.txt
     startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
     healthCheckPath: /api/health
+    envVars:
+      - key: FORGE_CYCLE_SECONDS
+        value: "300"
+      - key: FORGE_PROJECTS_PER_CYCLE
+        value: "1"
+      - key: OPENAI_MODEL
+        value: "gpt-5-mini"
+      - key: OPENAI_API_KEY
+        sync: false
