@@ -1,6 +1,7 @@
 from __future__ import annotations
 import asyncio, json, os, time, uuid
 from typing import Any
+from built_in_ai import answer_local, reason_agent, synthesize_local
 from urllib.request import Request, urlopen
 
 AGENT_ROLES = [
@@ -56,7 +57,7 @@ async def ask_llm(prompt: str, temperature: float = 0.2) -> str:
     except Exception as exc:
         return f"LLM connector error: {type(exc).__name__}: {exc}"
 
-async def run_agent(name: str, role: str, objective: str, context: str) -> dict[str, Any]:
+async def run_agent(name: str, role: str, objective: str, context: str, evidence=None) -> dict[str, Any]:
     prompt = f"""ROLE: {name}
 MISSION: {role}
 
@@ -74,11 +75,7 @@ Work independently. Return:
 Keep it concise but substantive."""
     result = await ask_llm(prompt, 0.35)
     if not result:
-        result = (
-            f"{name} completed a structured research pass. "
-            f"LLM_PROVIDER_NOT_CONFIGURED: the agent recorded the task but did not fabricate a conclusion. "
-            f"Next action: obtain an AI provider credential and rerun this branch."
-        )
+        result = await asyncio.to_thread(reason_agent, name, role, objective, context, evidence)
     return {
         "id": str(uuid.uuid4()),
         "agent": name,
@@ -109,7 +106,7 @@ Produce a living research report with:
 - Confidence (0-100) with a short reason
 Never present a hypothesis as a proven cure, treatment, invention, or scientific fact."""
     result = await ask_llm(prompt, 0.15)
-    return result or "Synthesis pending: configure OPENAI_API_KEY for full language-model reasoning."
+    return result or await asyncio.to_thread(synthesize_local, objective, findings, memory)
 
 async def answer_chat(question: str, report: str, memory: str) -> str:
     prompt = f"""You are the conversational lead of Quantum Forge.
@@ -128,5 +125,4 @@ MEMORY:
     result = await ask_llm(prompt, 0.25)
     if result:
         return result
-    return ("I can coordinate the Forge research pipeline, but the language-model connector is not "
-            "configured yet. Set OPENAI_API_KEY and OPENAI_MODEL, then ask again.")
+    return await asyncio.to_thread(answer_local, question, report, memory)
