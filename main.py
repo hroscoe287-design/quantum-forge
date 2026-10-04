@@ -39,7 +39,7 @@ def default_state():
         "last_cycle_completed": None, "last_cycle_duration": None,
         "current_project": None, "current_activity": "Agents standing by",
         "agents": {n: {"role": r, "status": "IDLE", "last_run": None, "jobs": 0,
-                       "activity": "Standing by", "last_result": ""} for n, r in AGENT_ROLES},
+                       "activity": "Standing by", "current_task": "", "last_completed_task": "", "next_assignment": "Waiting for the next autonomous cycle", "last_completed_at": None, "last_result": ""} for n, r in AGENT_ROLES},
         "bosses": {n: {"role": r, "department": DEPARTMENTS.get(n, []), "status": "IDLE", "last_run": None,
                        "jobs": 0, "activity": "Standing by", "last_result": ""} for n, r in BOSS_ROLES},
         "executive": {"agent": "SupremeForgeCEO", "status": "IDLE", "last_run": None, "reports": 0,
@@ -270,9 +270,15 @@ async def process_project(project, prompt=None):
         name, role = agent
         a = state["agents"][name]
         a["status"] = "WORKING"; a["activity"] = "Running independent reasoning pass"
+        a["current_task"] = objective[:500]
+        a["next_assignment"] = "Complete this research pass, record evidence, then await the next cycle"
         a["last_run"] = time.time(); a["jobs"] += 1
         result = await run_agent(name, role, objective, ctx, literature)
         a["status"] = "COMPLETE"; a["activity"] = "Completed this research pass"
+        a["current_task"] = ""
+        a["last_completed_task"] = objective[:500]
+        a["last_completed_at"] = time.time()
+        a["next_assignment"] = "Waiting for the next autonomous cycle"
         a["last_result"] = result["text"][:800]
         return result
 
@@ -385,6 +391,8 @@ async def process_project(project, prompt=None):
     for n, _ in AGENT_ROLES:
         state["agents"][n]["status"] = "IDLE"
         state["agents"][n]["activity"] = "Standing by"
+        state["agents"][n]["current_task"] = ""
+        state["agents"][n]["next_assignment"] = "Waiting for the next autonomous cycle"
     for n, _ in BOSS_ROLES:
         state["bosses"][n]["status"] = "IDLE"
         state["bosses"][n]["activity"] = "Standing by"
