@@ -188,6 +188,37 @@ def context_for(project):
     return "\n\n".join(parts)
 
 
+def ensure_paid_work_project():
+    """Create the active paid-work acquisition pipeline."""
+    if not REVENUE_MODE:
+        return
+    existing = next((p for p in state["projects"] if p.get("system") == "PAID_WORK_ACQUISITION"), None)
+    if existing:
+        return
+    p = {
+        "id": str(uuid.uuid4()),
+        "name": "Forge Paid Work Acquisition",
+        "objective": (
+            "Continuously find legitimate online paid work that Quantum Forge can help prepare or complete, "
+            "including small freelance jobs, research, coding, data cleanup, transcription, design, editing, "
+            "AI evaluation, testing, documentation, digital services, authorized bounties and other clearly "
+            "compensated work. Prefer even small legitimate payouts when payment terms are clear. "
+            "Verify employer/platform legitimacy, eligibility, scope, compensation, acceptance criteria and "
+            "payment timing. Never pay to get paid, never use fake identities, never impersonate the owner, "
+            "never spam, never perform unauthorized security testing, and never count forecasts as revenue. "
+            "Prepare applications, proposals and deliverables for human approval; actual submissions, contracts, "
+            "account access and financial transactions require explicit approval."
+        ),
+        "kind": "paid_work",
+        "created_at": time.time(),
+        "status": "ACTIVE",
+        "evidence_level": "RESEARCH",
+        "system": "PAID_WORK_ACQUISITION",
+    }
+    state["projects"].append(p)
+    add_audit_sync("PAID_WORK_ACQUISITION_STARTED", "Large worker network enabled for legitimate online paid-work discovery")
+    save_state_sync(state)
+
 def ensure_revenue_project():
     if not REVENUE_MODE:
         return
@@ -370,7 +401,12 @@ async def autonomous_cycle():
         save_state_sync(state)
         try:
             ensure_revenue_project()
-            active = [p for p in state["projects"] if p.get("status") in {"QUEUED", "ACTIVE"}][:MAX_PROJECTS_PER_CYCLE]
+            ensure_paid_work_project()
+            active_all = [p for p in state["projects"] if p.get("status") in {"QUEUED", "ACTIVE"}]
+            # Paid work gets first priority so the worker network searches for concrete, compensated tasks
+            # before returning to broader business-idea research.
+            active_all.sort(key=lambda p: 0 if p.get("system") == "PAID_WORK_ACQUISITION" else 1)
+            active = active_all[:MAX_PROJECTS_PER_CYCLE]
             if not active:
                 add_job_sync(None, "AUTONOMOUS_CYCLE", "COMPLETE", "No active projects; agents standing by")
                 state["current_activity"] = "No active projects — waiting for a research objective"
