@@ -17,7 +17,7 @@ DATA.mkdir(exist_ok=True)
 STATE_FILE = DATA / "state.json"
 STATE_TMP = DATA / "state.json.tmp"
 
-app = FastAPI(title="Quantum Forge", version="0.6.0")
+app = FastAPI(title="Quantum Forge", version="0.7.0")
 app.mount("/static", StaticFiles(directory=ROOT / "static"), name="static")
 
 CYCLE_SECONDS = max(60, int(os.getenv("FORGE_CYCLE_SECONDS", "300")))
@@ -153,7 +153,7 @@ async def process_project(project, prompt=None):
         a = state["agents"][name]
         a["status"] = "WORKING"; a["activity"] = "Running independent reasoning pass"
         a["last_run"] = time.time(); a["jobs"] += 1
-        result = await run_agent(name, role, objective, ctx)
+        result = await run_agent(name, role, objective, ctx, literature)
         a["status"] = "COMPLETE"; a["activity"] = "Completed this research pass"
         a["last_result"] = result["text"][:800]
         return result
@@ -250,7 +250,7 @@ async def health():
             "agents": len(AGENT_ROLES), "cycle": state["cycle"],
             "running": state["running"], "cycle_status": state["cycle_status"],
             "last_cycle_completed": state["last_cycle_completed"],
-            "llm_configured": bool(os.getenv("OPENAI_API_KEY")),
+            "llm_configured": bool(os.getenv("OPENAI_API_KEY")),\n            "built_in_ai": True,\n            "ai_mode": "EXTERNAL_LLM + BUILT_IN_FALLBACK" if os.getenv("OPENAI_API_KEY") else "BUILT_IN_COGNITIVE_CORE",
             "quantum": qs}
 
 @app.get("/api/quantum/status")
