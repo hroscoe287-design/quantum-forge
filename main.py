@@ -16,6 +16,7 @@ from memory_system import learn_from_cycle, recall, stats as memory_stats
 from revenue_engine import build_offer, create_payment_link, offer_html, stripe_configured
 from payout_ledger import ensure_ledger, recompute_summary, request_daily_payout, approve_payout, reject_payout, record_verified_result
 from stripe_webhooks import verify_signature, parse_event
+from paid_work_pipeline import discover_paid_work, build_work_brief
 
 ROOT = Path(__file__).parent
 DATA = ROOT / "data"
@@ -46,7 +47,7 @@ def default_state():
                       "last_report": "", "verified_revenue_usd": 0.0, "verified_costs_usd": 0.0},
         "projects": [], "discoveries": [], "jobs": [], "evidence": [], "audit": [],
         "memory": [], "report": "", "chat": [],
-        "daily_reports": [], "daily_report_date": None, "owner_tasks": [],
+        "daily_reports": [], "daily_report_date": None, "owner_tasks": [], "paid_work_opportunities": [],
         "revenue": {"enabled": REVENUE_MODE, "opportunities_found": 0, "experiments": 0, "pipeline_status": "SCANNING", "last_scan": None, "note": "Agents research and prepare revenue opportunities continuously; human approval is required before sales, spending, contracts, or financial transactions.", "proposals": [], "approved": [], "rejected": [], "offers": [], "verified_revenue_usd": 0.0, "checkout_provider": "stripe", "checkout_configured": stripe_configured()},
         "quantum": {
             "mode": "LOCAL_STATE_VECTOR", "provider": "local",
@@ -265,7 +266,22 @@ async def process_project(project, prompt=None):
         state["evidence"].insert(0, {**item, "project_id": project["id"], "created_at": time.time()})
     state["evidence"] = state["evidence"][:600]
 
-    ctx = context_for(project)
+    paid_context = ""
+    if project.get("system") == "PAID_WORK_ACQUISITION":
+        candidates = await asyncio.to_thread(discover_paid_work, state.get("paid_work_opportunities", []), 3)
+        state.setdefault("paid_work_opportunities", []).extend(candidates)
+        state["paid_work_opportunities"] = state["paid_work_opportunities"][:500]
+        candidates = state["paid_work_opportunities"][:80]
+        paid_context = "\n\nREAL PAID-WORK CANDIDATES:\n" + "\n".join(
+            f"- [{x.get('score',0):.0f}/100] {x.get('category')}: {x.get('title')} | {x.get('source_url')} | {x.get('verification')}"
+            for x in candidates if x.get("status") == "CANDIDATE"
+        )
+        state["revenue"]["pipeline_status"] = "PAID_WORK_CANDIDATES_FOUND" if candidates else "SEARCHING"
+        state["revenue"]["opportunities_found"] = len([x for x in state["paid_work_opportunities"] if x.get("status") == "CANDIDATE"])
+        for x in candidates[:10]:
+            x["brief"] = build_work_brief(x)
+        save_state_sync(state)
+    ctx = context_for(project) + paid_context
     async def one(agent):
         name, role = agent
         a = state["agents"][name]
@@ -477,6 +493,30 @@ async def complete_owner_task(task_id: str):
     add_audit_sync("OWNER_TASK_COMPLETED", task.get("title", ""))
     save_state_sync(state)
     return task
+
+@app.get("/api/paid-work")
+async def paid_work():
+    items = state.get("paid_work_opportunities", [])
+    return {
+        "pipeline": "FIND -> VERIFY -> PREPARE -> QUALITY -> OWNER APPROVAL -> SUBMIT -> PAYMENT VERIFICATION",
+        "candidates": items[:200],
+        "count": len(items),
+        "verified_revenue_usd": float(state.get("revenue", {}).get("verified_revenue_usd", 0.0) or 0.0),
+        "rule": "A discovered listing is never counted as earnings. Payment must be independently verified."
+    }
+
+@app.post("/api/paid-work/{opportunity_id}/prepare")
+async def prepare_paid_work(opportunity_id: str):
+    item = next((x for x in state.get("paid_work_opportunities", []) if x.get("id") == opportunity_id), None)
+    if not item:
+        return {"ok": False, "error": "Opportunity not found"}
+    if item.get("status") != "CANDIDATE":
+        return {"ok": False, "error": "Opportunity is not eligible for preparation"}
+    item["status"] = "READY_FOR_OWNER_REVIEW"
+    item["brief"] = build_work_brief(item)
+    add_audit_sync("PAID_WORK_PREPARED", item.get("title", ""))
+    save_state_sync(state)
+    return {"ok": True, "opportunity": item}
 
 @app.get("/api/state")
 async def api_state():
