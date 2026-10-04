@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import quote_plus
 from urllib.request import Request, urlopen
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
@@ -14,7 +14,8 @@ from quantum_cloud import config as quantum_config, job_status as quantum_job_st
 from neural_core import status as neural_status
 from memory_system import learn_from_cycle, recall, stats as memory_stats
 from revenue_engine import build_offer, create_payment_link, offer_html, stripe_configured
-from payout_ledger import ensure_ledger, recompute_summary, request_daily_payout, approve_payout, reject_payout
+from payout_ledger import ensure_ledger, recompute_summary, request_daily_payout, approve_payout, reject_payout, record_verified_result
+from stripe_webhooks import verify_signature, parse_event
 
 ROOT = Path(__file__).parent
 DATA = ROOT / "data"
@@ -357,8 +358,10 @@ async def process_project(project, prompt=None):
     save_state_sync(state)
 
 async def autonomous_cycle():
+    first = True
     while True:
-        await asyncio.sleep(CYCLE_SECONDS)
+        await asyncio.sleep(5 if first else CYCLE_SECONDS)
+        first = False
         if state["cycle_status"] == "WORKING":
             continue
         state["cycle"] += 1
@@ -511,6 +514,23 @@ async def payout_reject(payout_id: str, req: RevenueApproval):
         add_audit_sync("PAYOUT_REJECTED", payout_id + ": " + req.note[:180])
         save_state_sync(state)
     return result
+
+@app.post("/api/revenue/stripe/webhook")
+async def stripe_webhook(request: Request):
+    payload=await request.body()
+    if not verify_signature(payload,request.headers.get("stripe-signature",""),os.getenv("STRIPE_WEBHOOK_SECRET","").strip()):
+        return {"ok":False,"error":"Invalid Stripe webhook signature"}
+    try:
+        event=parse_event(payload); typ=event.get("type",""); obj=event.get("data",{}).get("object",{})
+        if typ=="checkout.session.completed" and obj.get("payment_status")=="paid":
+            cents=int(obj.get("amount_total") or 0)
+            if cents>0:
+                entry=record_verified_result(state,cents/100.0,"STRIPE_PAYMENT","Stripe Checkout",event.get("id",""))
+                recompute_summary(state); add_audit_sync("STRIPE_PAYMENT_VERIFIED",f"Stripe event {event.get('id','')}: $"+f"{cents/100:.2f}"); save_state_sync(state)
+                return {"ok":True,"verified":True,"entry":entry}
+        return {"ok":True,"verified":False,"event_type":typ}
+    except Exception as exc:
+        add_audit_sync("STRIPE_WEBHOOK_ERROR",str(exc)[:1000]); return {"ok":False,"error":str(exc)[:500]}
 
 @app.get("/api/revenue/proposals")
 async def revenue_proposals():
