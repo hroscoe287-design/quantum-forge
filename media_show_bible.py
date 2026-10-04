@@ -6,6 +6,8 @@ Do not copy protected characters, exact artwork, logos, names, costumes or livin
 artists' distinctive styles.
 """
 
+from bloodline_character_bible import diamond_directive
+
 SHOW_PROMPTS = {
     "Paradise Fall": {
         "format": "original science-fantasy animated series, shorts, trailers and mini-movie concepts",
