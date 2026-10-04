@@ -7,6 +7,34 @@ artists' distinctive styles.
 """
 
 SHOW_PROMPTS = {
+    "Paradise Fall": {
+        "format": "original science-fantasy animated series, shorts, trailers and mini-movie concepts",
+        "core": """Humanity discovers a distant planet and transforms it into a paradise. Generations
+later, ancient godlike beings who originated there return and declare humanity's
+settlement an invasion. Humans adapted to the planet have developed extraordinary
+abilities and defend the home they built, while the ancient species believes it is
+reclaiming its world. The story explores survival, identity, ownership, technology,
+adaptation and whether either side truly understands the planet's history.""",
+        "characters": [
+            "Human defenders: generations of settlers adapted to the planet, some with extraordinary abilities.",
+            "Ancient godlike species: powerful original inhabitants returning after an unexplained absence.",
+            "Human scientists and engineers: builders of the paradise cities, spacecraft and survival technology.",
+            "Alien creatures: native lifeforms ranging from peaceful ecosystems to dangerous predators."
+        ],
+        "technology": """Original futuristic technology including advanced protective suits, anti-gravity
+vehicles, flying spacecraft, hoverboards, planetary engineering systems and defensive
+technology. Keep the technology fictional and cinematic rather than providing real-world
+weapon construction instructions.""",
+        "world": """A massive alien world with breathtaking paradise regions, enormous futuristic human
+cities, ancient ruins, strange ecosystems, floating infrastructure and dangerous
+frontier zones. Contrast beautiful civilization with mysterious remnants of the
+ancient species.""",
+        "visual_prompt": """Original cinematic science-fantasy animation: enormous alien landscapes, luminous
+ecosystems, futuristic paradise cities, floating architecture, sleek original spacecraft,
+anti-gravity boards, advanced suits, ancient colossal ruins, mysterious godlike beings,
+dramatic skies, spectacular scale, emotional character moments and dynamic original
+action sequences."""
+    },
     "Juno the Jumping Dolphin": {
         "format": "children's animated series and shorts",
         "core": """Juno is a funny, energetic jumping dolphin who leads an underwater friend group.
