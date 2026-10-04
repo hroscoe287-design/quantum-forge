@@ -107,12 +107,18 @@ def maybe_daily_report_sync():
         "generated_at": time.time(),
         "cycles_completed": state.get("cycle", 0),
         "agents": len(AGENT_ROLES),
+        "bosses": len(BOSS_ROLES),
+        "executive_agent": "SupremeForgeCEO",
         "projects": len(state.get("projects", [])),
         "discoveries": len(state.get("discoveries", [])),
         "revenue_opportunities": rv.get("opportunities_found", 0),
         "revenue_experiments": rv.get("experiments", 0),
         "live_offers": live_offers,
         "verified_revenue_usd": verified,
+        "verified_costs_usd": float(rv.get("verified_costs_usd", 0.0) or 0.0),
+        "verified_profit_usd": verified - float(rv.get("verified_costs_usd", 0.0) or 0.0),
+        "boss_reviews": len(BOSS_ROLES),
+        "executive_report": state.get("executive", {}).get("last_report", "")[:12000],
         "decision": "Use verified results to scale, modify or kill experiments; forecasts are not counted as revenue.",
     }
     state.setdefault("daily_reports", []).insert(0, report)
@@ -395,6 +401,10 @@ async def health():
             "built_in_ai": True,
             "ai_mode": "EXTERNAL_LLM + BUILT_IN_FALLBACK" if os.getenv("OPENAI_API_KEY") else "BUILT_IN_COGNITIVE_CORE",
             "quantum": qs, "neural_core": neural_status(), "memory": memory_stats(), "revenue": state.get("revenue", {})}
+
+@app.get("/api/org")
+async def api_org():
+    return {"executive": state.get("executive", {}), "bosses": state.get("bosses", {}), "departments": DEPARTMENTS}
 
 @app.get("/api/memory/search")
 async def api_memory_search(q: str, limit: int = 12):
