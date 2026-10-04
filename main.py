@@ -19,11 +19,12 @@ DATA.mkdir(exist_ok=True)
 STATE_FILE = DATA / "state.json"
 STATE_TMP = DATA / "state.json.tmp"
 
-app = FastAPI(title="Quantum Forge", version="0.7.0")
+app = FastAPI(title="Quantum Forge", version="0.8.0")
 app.mount("/static", StaticFiles(directory=ROOT / "static"), name="static")
 
 CYCLE_SECONDS = max(60, int(os.getenv("FORGE_CYCLE_SECONDS", "300")))
 MAX_PROJECTS_PER_CYCLE = max(1, int(os.getenv("FORGE_PROJECTS_PER_CYCLE", "1")))
+REVENUE_MODE = os.getenv("FORGE_REVENUE_MODE", "true").strip().lower() in {"1", "true", "yes", "on"}
 state_lock = asyncio.Lock()
 cycle_task = None
 
@@ -37,6 +38,7 @@ def default_state():
                        "activity": "Standing by", "last_result": ""} for n, r in AGENT_ROLES},
         "projects": [], "discoveries": [], "jobs": [], "evidence": [], "audit": [],
         "memory": [], "report": "", "chat": [],
+        "revenue": {"enabled": REVENUE_MODE, "opportunities_found": 0, "experiments": 0, "pipeline_status": "SCANNING", "last_scan": None, "note": "Agents research and prepare revenue opportunities continuously; human approval is required before sales, spending, contracts, or financial transactions."},
         "quantum": {
             "mode": "LOCAL_STATE_VECTOR", "provider": "local",
             "hardware_connected": False, "backend": None, "qubits": 8,
@@ -135,6 +137,33 @@ def context_for(project):
         parts.append("RECENT DISCOVERIES:\n" + "\n".join(x.get("summary","") for x in recent))
     return "\n\n".join(parts)
 
+
+def ensure_revenue_project():
+    if not REVENUE_MODE:
+        return
+    existing = next((p for p in state["projects"] if p.get("system") == "REVENUE_LAB"), None)
+    if existing:
+        return
+    p = {
+        "id": str(uuid.uuid4()),
+        "name": "Forge Revenue Lab",
+        "objective": (
+            "Continuously discover legitimate, defensible ways Quantum Forge can earn revenue. "
+            "Research customer pain, demand, competitors, pricing, distribution and product opportunities. "
+            "Turn the best opportunities into concrete experiments and launch-ready assets. "
+            "Do not spend money, trade assets, send unsolicited outreach, sign contracts, or claim revenue "
+            "without explicit human approval and verification."
+        ),
+        "kind": "revenue",
+        "created_at": time.time(),
+        "status": "ACTIVE",
+        "evidence_level": "RESEARCH",
+        "system": "REVENUE_LAB",
+    }
+    state["projects"].append(p)
+    add_audit_sync("REVENUE_LAB_STARTED", "Continuous revenue-discovery pipeline enabled")
+    save_state_sync(state)
+
 async def process_project(project, prompt=None):
     objective = prompt or project["objective"]
     project["status"] = "RESEARCHING"
@@ -176,6 +205,14 @@ async def process_project(project, prompt=None):
         else:
             state["quantum"]["hardware_connected"] = False
     report = await synthesize(objective, findings, state.get("report", ""))
+    if project.get("system") == "REVENUE_LAB":
+        state["revenue"]["last_scan"] = time.time()
+        state["revenue"]["opportunities_found"] += sum(
+            1 for f in findings
+            if any(k in f.get("text", "").lower() for k in ("revenue", "customer", "pricing", "opportunity", "mvp"))
+        )
+        state["revenue"]["experiments"] += 1
+        state["revenue"]["pipeline_status"] = "OPPORTUNITIES_READY"
     learned_ids = await asyncio.to_thread(learn_from_cycle, project["id"], objective, report, findings, literature)
     state["report"] = report
 
@@ -221,6 +258,7 @@ async def autonomous_cycle():
         state["last_cycle_started"] = time.time()
         save_state_sync(state)
         try:
+            ensure_revenue_project()
             active = [p for p in state["projects"] if p.get("status") in {"QUEUED", "ACTIVE"}][:MAX_PROJECTS_PER_CYCLE]
             if not active:
                 add_job_sync(None, "AUTONOMOUS_CYCLE", "COMPLETE", "No active projects; agents standing by")
@@ -257,7 +295,7 @@ async def health():
             "llm_configured": bool(os.getenv("OPENAI_API_KEY")),
             "built_in_ai": True,
             "ai_mode": "EXTERNAL_LLM + BUILT_IN_FALLBACK" if os.getenv("OPENAI_API_KEY") else "BUILT_IN_COGNITIVE_CORE",
-            "quantum": qs, "neural_core": neural_status(), "memory": memory_stats()}
+            "quantum": qs, "neural_core": neural_status(), "memory": memory_stats(), "revenue": state.get("revenue", {})}
 
 @app.get("/api/memory/search")
 async def api_memory_search(q: str, limit: int = 12):
