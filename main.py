@@ -254,7 +254,8 @@ async def health():
             "agents": len(AGENT_ROLES), "cycle": state["cycle"],
             "running": state["running"], "cycle_status": state["cycle_status"],
             "last_cycle_completed": state["last_cycle_completed"],
-            "llm_configured": bool(os.getenv("OPENAI_API_KEY")),\n            "built_in_ai": True,\n            "ai_mode": "EXTERNAL_LLM + BUILT_IN_FALLBACK" if os.getenv("OPENAI_API_KEY") else "BUILT_IN_COGNITIVE_CORE",
+            "llm_configured": bool(os.getenv("OPENAI_API_KEY")),
+            "built_in_ai": True,\n            "ai_mode": "EXTERNAL_LLM + BUILT_IN_FALLBACK" if os.getenv("OPENAI_API_KEY") else "BUILT_IN_COGNITIVE_CORE",
             "quantum": qs, "neural_core": neural_status(), "memory": memory_stats()}
 
 @app.get("/api/memory/search")
