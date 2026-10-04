@@ -7,8 +7,6 @@ from memory_system import recall
 from urllib.request import Request, urlopen
 from urllib.parse import quote_plus
 import re
-from urllib.parse import quote_plus
-import re
 
 AGENT_ROLES = [
     ("Coordinator", "Break the objective into a research plan and assign priorities."),
@@ -27,7 +25,6 @@ AGENT_ROLES = [
     ("Sales", "Build qualified-customer profiles, outreach drafts, demo plans, objection handling and lead-scoring criteria. Do not send messages or make commitments without human approval."),
     ("Pricing", "Model sustainable pricing, usage limits, unit economics, gross-margin targets and packaging using explicit assumptions rather than invented financial results."),
     ("Opportunity", "Continuously compare ideas, score market attractiveness, urgency, competition, feasibility and monetization potential, then select the next highest-value experiment."),
-    ("Venture", "Find legitimate ways the Forge can create revenue: customer problems, products, pricing, distribution, validation tests and unit economics. Never assume revenue is guaranteed and never take financial actions without human approval."),
 ]
 
 SYSTEM = """You are an autonomous research agent inside Quantum Forge.
@@ -69,27 +66,6 @@ async def ask_llm(prompt: str, temperature: float = 0.2) -> str:
         return await asyncio.to_thread(call)
     except Exception as exc:
         return f"LLM connector error: {type(exc).__name__}: {exc}"
-
-
-def market_search(query: str, limit: int = 5) -> list[dict[str, str]]:
-    """Lightweight public-market discovery for the Venture agent."""
-    url = "https://html.duckduckgo.com/html/?q=" + quote_plus(query)
-    try:
-        req = Request(url, headers={"User-Agent": "QuantumForge/1.0 market research"})
-        with urlopen(req, timeout=15) as r:
-            html = r.read().decode("utf-8", errors="replace")
-        results = []
-        for m in re.finditer(r'<a[^>]+class="result__a"[^>]+href="([^"]+)"[^>]*>(.*?)</a>', html, re.S | re.I):
-            href, title = m.groups()
-            title = re.sub(r"<.*?>", "", title).strip()
-            if title and href:
-                results.append({"title": title[:240], "url": href[:1000]})
-            if len(results) >= limit:
-                break
-        return results
-    except Exception:
-        return []
-
 
 
 def market_search(query: str, limit: int = 5) -> list[dict[str, str]]:
