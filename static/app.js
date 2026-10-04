@@ -14,7 +14,7 @@ async function load(){
   $("#reportText").textContent=s.report||"No synthesis yet. Start a project to create the first living report.";
   $("#memoryList").innerHTML=(s.memory||[]).slice(0,20).map(m=>'<div class="item"><p>'+esc(m.lesson)+'</p><span class="muted">'+fmt(m.time)+'</span></div>').join("")||'<div class="muted">Learning memory is empty.</div>';
   $("#chatLog").innerHTML=(s.chat||[]).map(m=>'<div class="chat '+(m.role==="user"?"user":"ai")+'"><b>'+esc(m.role==="user"?"YOU":"LEAD AI")+'</b><p>'+esc(m.content)+'</p></div>').join("");
-  $("#auditList").innerHTML=s.audit.slice(0,30).map(a=>'<div class="item"><b>'+esc(a.action)+'</b><p>'+esc(a.detail)+'</p></div>').join("")||'<div class="card">Audit trail is empty.</div>';
+  const ownerTasks=(s.owner_tasks||[]).filter(t=>["NEEDS_OWNER","OPEN"].includes(t.status)); $("#ownerTaskList").innerHTML=ownerTasks.length?ownerTasks.map(t=>'<div class="item owner-task"><h3>'+esc(t.title)+'</h3><p>'+esc(t.details)+'</p><span class="muted">PRIORITY: '+esc(t.priority||"NORMAL")+(t.due_at?' • DUE: '+fmt(t.due_at):"")+'</span><div><button class="complete-owner-btn" data-id="'+esc(t.id)+'">MARK COMPLETED</button></div></div>').join(""):'<div class="muted">Nothing requires your action right now. Forge is handling the work it is permitted to handle.</div>'; document.querySelectorAll(".complete-owner-btn").forEach(b=>b.onclick=()=>completeOwnerTask(b.dataset.id)); $("#auditList").innerHTML=s.audit.slice(0,30).map(a=>'<div class="item"><b>'+esc(a.action)+'</b><p>'+esc(a.detail)+'</p></div>').join("")||'<div class="card">Audit trail is empty.</div>';
  }catch(e){$("#currentActivity").textContent="Dashboard reconnecting…";}
 }
 $("#projectForm").addEventListener("submit",async e=>{e.preventDefault();const r=await fetch("/api/projects",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({name:$("#name").value,kind:$("#kind").value,objective:$("#objective").value})});if(r.ok){e.target.reset();await load();alert("Forge project started.");}});
@@ -32,3 +32,4 @@ async function rejectRevenue(id){
   const r=await fetch("/api/revenue/proposals/"+id+"/reject",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({approved_by:"owner",note:"Rejected in Quantum Forge dashboard"})});
   const x=await r.json(); alert(x.ok?"Rejected.":"Rejection failed: "+(x.error||"unknown error")); await load();
 }
+async function completeOwnerTask(id){const r=await fetch("/api/right-hand-man/tasks/"+id+"/complete",{method:"POST"});const x=await r.json();if(!x.status)alert(x.error||"Could not complete task");await load();}
